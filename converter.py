@@ -2,10 +2,6 @@ import sys
 import os
 import numpy as np
 from pyproj import Proj, Transformer, CRS
-import utm
-import math
-from geographiclib.geodesic import Geodesic
-import geographiclib as gl
 import multiprocessing as mp
 import pandas as pd
 import argparse
