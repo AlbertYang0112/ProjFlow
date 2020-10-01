@@ -12,8 +12,6 @@ AUSTIN_PROJ4_DESC = "+proj=lcc \
     +lon_0=-100.333333333333 +x_0=2296583.333333 +y_0=9842500 \
     +datum=NAD83 +units=m +no_defs"
 
-ALTITUDE_LB = 80
-ALTITUDE_UB = 400
 ERR_UB = 2000
 
 parser = argparse.ArgumentParser(description="Preprocess the GPS-data")
@@ -21,18 +19,16 @@ parser.add_argument('inputDir', type=str, metavar="DirIn", help='Raw dataset Dir
 parser.add_argument('outputDir', type=str, metavar="DirOut", help='Output Dir')
 parser.add_argument("--sizeX", type=int, metavar='SX', help='GeoHash Block Size X', default=ERR_UB)
 parser.add_argument("--sizeY", type=int, metavar='SY', help='GeoHash Block Size Y', default=ERR_UB)
-parser.add_argument("--sizeZ", type=int, metavar='SZ', help='GeoHash Block Size Z', default=ERR_UB)
 parser.add_argument("--thread", type=int, help='Multiprocessing Thread Pool Size', default=4)
 parser.add_argument("--mapLbX", type=float, default=-1)
 parser.add_argument("--mapLbY", type=float, default=-1)
-parser.add_argument("--mapLbZ", type=float, default=-1)
 
 crsWGS84 = CRS.from_epsg(4326)
 crsAustin = CRS.from_proj4(AUSTIN_PROJ4_DESC)
 transformer = Transformer.from_crs(crsWGS84, crsAustin)
 
 def applyTransform(wgs):
-    return transformer.transform(wgs[0], wgs[1], wgs[2])
+    return transformer.transform(wgs[0], wgs[1])
 
 def preproc(filePath, fileName, outputPath, tqdmHandle, blockSize):
     stat = pd.DataFrame()   # Collect the statistic data
@@ -48,26 +44,18 @@ def preproc(filePath, fileName, outputPath, tqdmHandle, blockSize):
     errPings = np.logical_or(err == 0, err > ERR_UB)
     dataset.drop(dataset[errPings].index, inplace=True, axis=0)
 
-    # Clean the altitude - Set the altitude to the average
-    alt = dataset['altitude'].fillna(0)
-    validAlt = np.logical_and(alt > ALTITUDE_LB, alt < ALTITUDE_UB)
-    avgAlt = np.average(alt[validAlt])
-    dataset.loc[~validAlt, 'altitude'] = avgAlt
-    tqdmHandle.set_description(f"Fix {np.sum(~validAlt)} invalid altitudes.")
-
     # Sort the data according to the time
     dataset = dataset.sort_values(by='location_at')
     
     # Get the map boundary
-    wgsMapLb = np.zeros(3)
+    wgsMapLb = np.zeros(2)
     wgsMapLb[0] = np.min(dataset['latitude']) if args.mapLbX == -1 else args.mapLbX
     wgsMapLb[1] = np.min(dataset['longitude']) if args.mapLbY == -1 else args.mapLbY
-    wgsMapLb[2] = np.min(dataset['altitude']) if args.mapLbZ == -1 else args.mapLbZ
-    mapLb = np.array(transformer.transform(wgsMapLb[0], wgsMapLb[1], wgsMapLb[2]))
+    mapLb = np.array(transformer.transform(wgsMapLb[0], wgsMapLb[1]))
 
     # Convert to local cartesian coordinate
     tqdmHandle.set_description("Convert the CRS")
-    pos = dataset.loc[:, ("latitude", "longitude", "altitude")]
+    pos = dataset.loc[:, ("latitude", "longitude")]
     with mp.Pool(args.thread) as pool:
         localPos = pool.map(applyTransform, pos.values)
     localPos = np.array(localPos)
@@ -78,28 +66,23 @@ def preproc(filePath, fileName, outputPath, tqdmHandle, blockSize):
     # Insert new data
     dataset.insert(7, 'x', localPos[:, 0])
     dataset.insert(8, 'y', localPos[:, 1])
-    dataset.insert(9, 'z', localPos[:, 2])
     dataset.insert(10, 'bx', geohashBlk[:, 0])
     dataset.insert(11, 'by', geohashBlk[:, 1])
-    dataset.insert(12, 'bz', geohashBlk[:, 2])
     outputPath = os.path.join(outputPath, fileName)
     tqdmHandle.set_description(f"Writing CSV to {outputPath}")
     # Export the CSV and write the stat
     dataset.to_csv(outputPath)
     stat.loc[0, 'FilteredPings'] = dataset.shape[0]
     stat.loc[0, 'AccErrPings'] = np.sum(errPings)
-    stat.loc[0, 'AltErrPings'] = np.sum(~validAlt)
     stat.loc[0, 'latitudeLb'] = wgsMapLb[0]
     stat.loc[0, 'longitudeLb'] = wgsMapLb[1]
-    stat.loc[0, 'altitudeLb'] = wgsMapLb[2]
     stat.loc[0, 'xLb'] = mapLb[0]
     stat.loc[0, 'yLb'] = mapLb[1]
-    stat.loc[0, 'zLb'] = mapLb[2]
     return stat
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    blockSize = np.array((args.sizeX, args.sizeY, args.sizeZ))
+    blockSize = np.array((args.sizeX, args.sizeY))
     os.makedirs(args.outputDir, exist_ok=True)
 
     # Find all the CSV files

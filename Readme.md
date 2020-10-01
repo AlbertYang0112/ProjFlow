@@ -10,7 +10,7 @@ Traffic flow prediction.
 - Calculate the GeoHash block coordinates.
   - Three block coordinates, not mixed together.
 - Filter pings with low accuracy.
-- Fill the missing/invalid altitude with the average altitude.
+- ~~Fill the missing/invalid altitude with the average altitude.~~
 
 - Usage: `python converter.py datasetDir outputDir [optional args]`, optional args contain:
   - `--size[X-Z]`: The GeoHash block size. If not specified, block sizes are set to 2000;
