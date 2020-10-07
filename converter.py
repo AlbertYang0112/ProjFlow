@@ -17,8 +17,7 @@ ERR_UB = 2000
 parser = argparse.ArgumentParser(description="Preprocess the GPS-data")
 parser.add_argument('inputDir', type=str, metavar="DirIn", help='Raw dataset Dir')
 parser.add_argument('outputDir', type=str, metavar="DirOut", help='Output Dir')
-parser.add_argument("--sizeX", type=int, metavar='SX', help='GeoHash Block Size X', default=ERR_UB)
-parser.add_argument("--sizeY", type=int, metavar='SY', help='GeoHash Block Size Y', default=ERR_UB)
+parser.add_argument("--size", type=int, metavar='Size', help='GeoHash Block Size', default=ERR_UB)
 parser.add_argument("--thread", type=int, help='Multiprocessing Thread Pool Size', default=4)
 parser.add_argument("--mapLbX", type=float, default=-1)
 parser.add_argument("--mapLbY", type=float, default=-1)
@@ -82,7 +81,7 @@ def preproc(filePath, fileName, outputPath, tqdmHandle, blockSize):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    blockSize = np.array((args.sizeX, args.sizeY))
+    blockSize = np.array((args.size, args.size))
     os.makedirs(args.outputDir, exist_ok=True)
 
     # Find all the CSV files
