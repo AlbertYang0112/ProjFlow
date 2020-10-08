@@ -11,6 +11,7 @@ Traffic flow prediction.
   - Three block coordinates, not mixed together.
 - Filter pings with low accuracy.
 - ~~Fill the missing/invalid altitude with the average altitude.~~
+- Filter the blocks whose GeoHash coordinates are smaller than the boundary.
 
 - Usage: `python converter.py datasetDir outputDir [optional args]`, optional args contain:
   - `--size`: The GeoHash block size. If not specified, block sizes are set to 2000;
