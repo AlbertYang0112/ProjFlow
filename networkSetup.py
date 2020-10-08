@@ -191,7 +191,7 @@ if __name__ == '__main__':
         for i in range(len(nodeTimeList)):
             print(getTimeStr(nodeTimeList[timeOrder[i]]), file=f)
     if len(args.adjFig) > 0:
-        plt.set_cmap('RdYlBu_r')
+        plt.set_cmap('RdBu_r')
         plt.figure(figsize=(8, 8))
         plt.title(f"EdgeTh: {args.edgeTh} Sparsity: {np.round(sparsity * 100, 2)}%")
         plt.axis('off')
