@@ -2,3 +2,5 @@
 Dataset/
 build
 sketch*
+*.csv
+*.gexf
