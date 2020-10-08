@@ -46,7 +46,7 @@ Traffic flow prediction.
   - `--adjFig`: File name of the image of the adjacency matrix.
 
 
-## Environement & Dependencies
+## Environment & Dependencies
 - Python 3.6
 - numpy
 - pyproj
