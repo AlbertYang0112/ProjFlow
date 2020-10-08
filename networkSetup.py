@@ -13,6 +13,7 @@ AUSTIN_TIME_OFFSET = -6 * 60 * 60
 DATA_TIME_OFFSET = 0
 DAY_LENGTH = 24 * 60 * 60
 DEFAULT_TIME_INTERVAL = 180
+ADJ_FIG_GAMMA = 0.25
 
 parser = argparse.ArgumentParser(description="Generate The Map")
 parser.add_argument('inputDir', type=str, metavar="DirIn", help="Preprocessed Dataset")
@@ -181,7 +182,7 @@ if __name__ == '__main__':
     if len(args.nxFileDir) > 0:
         nx.write_gexf(G, "OverallG.gexf")
     adjacencyMat = nx.convert_matrix.to_numpy_matrix(G)
-    sparsity = np.sum(adjacencyMat != 0) / (adjacencyMat.shape[0] * adjacencyMat.shape[1])
+    sparsity = np.sum(adjacencyMat < 1e-8) / (adjacencyMat.shape[0] * adjacencyMat.shape[1])
     print(f"Sparsity: {sparsity}")
     np.savetxt(args.adjFile, adjacencyMat, delimiter=',')
     np.savetxt(args.featureFile, counts, delimiter=',', fmt='%d')
@@ -190,5 +191,10 @@ if __name__ == '__main__':
         for i in range(len(nodeTimeList)):
             print(getTimeStr(nodeTimeList[timeOrder[i]]), file=f)
     if len(args.adjFig) > 0:
-        plt.imsave(args.adjFig, adjacencyMat)
+        plt.set_cmap('RdBu_r')
+        plt.imshow(np.power(adjacencyMat, ADJ_FIG_GAMMA))
+        plt.title(f"EdgeTh: {args.edgeTh} Sparsity: {np.round(sparsity * 100, 2)}%")
+        plt.axis('off')
+        plt.savefig(args.adjFig)
+        # plt.imsave(args.adjFig, np.power(adjacencyMat, ADJ_FIG_GAMMA))
     print("Done")
