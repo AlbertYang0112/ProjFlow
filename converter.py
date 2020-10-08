@@ -19,8 +19,8 @@ parser.add_argument('inputDir', type=str, metavar="DirIn", help='Raw dataset Dir
 parser.add_argument('outputDir', type=str, metavar="DirOut", help='Output Dir')
 parser.add_argument("--size", type=int, metavar='Size', help='GeoHash Block Size', default=ERR_UB)
 parser.add_argument("--thread", type=int, help='Multiprocessing Thread Pool Size', default=4)
-parser.add_argument("--mapLbX", type=float, default=-1)
-parser.add_argument("--mapLbY", type=float, default=-1)
+parser.add_argument("--mapLbX", type=float, default=30.18)
+parser.add_argument("--mapLbY", type=float, default=-97.92)
 
 crsWGS84 = CRS.from_epsg(4326)
 crsAustin = CRS.from_proj4(AUSTIN_PROJ4_DESC)
@@ -48,8 +48,8 @@ def preproc(filePath, fileName, outputPath, tqdmHandle, blockSize):
     
     # Get the map boundary
     wgsMapLb = np.zeros(2)
-    wgsMapLb[0] = np.min(dataset['latitude']) if args.mapLbX == -1 else args.mapLbX
-    wgsMapLb[1] = np.min(dataset['longitude']) if args.mapLbY == -1 else args.mapLbY
+    wgsMapLb[0] = args.mapLbX
+    wgsMapLb[1] = args.mapLbY
     mapLb = np.array(transformer.transform(wgsMapLb[0], wgsMapLb[1]))
 
     # Convert to local cartesian coordinate
@@ -62,16 +62,25 @@ def preproc(filePath, fileName, outputPath, tqdmHandle, blockSize):
     # Get the geohash coordinate
     geohashBlk = np.around((localPos - mapLb) / blockSize).astype(np.int)
 
+    # Remove blocks out of boundary
+    validIdx = np.all(geohashBlk >= 0, axis=1)
+    oobCount = np.sum(~validIdx)
+    dataset = dataset[validIdx]
+    tqdmHandle.set_description(f"{oobCount} pings out of boundary!")
+    localPos = localPos[validIdx, :]
+    geohashBlk = geohashBlk[validIdx, :]
+
     # Insert new data
     dataset.insert(7, 'x', localPos[:, 0])
     dataset.insert(8, 'y', localPos[:, 1])
-    dataset.insert(10, 'bx', geohashBlk[:, 0])
-    dataset.insert(11, 'by', geohashBlk[:, 1])
+    dataset.insert(9, 'bx', geohashBlk[:, 0])
+    dataset.insert(10, 'by', geohashBlk[:, 1])
     outputPath = os.path.join(outputPath, fileName)
     tqdmHandle.set_description(f"Writing CSV to {outputPath}")
     # Export the CSV and write the stat
     dataset.to_csv(outputPath)
     stat.loc[0, 'FilteredPings'] = dataset.shape[0]
+    stat.loc[0, 'OOBPings'] = oobCount
     stat.loc[0, 'AccErrPings'] = np.sum(errPings)
     stat.loc[0, 'latitudeLb'] = wgsMapLb[0]
     stat.loc[0, 'longitudeLb'] = wgsMapLb[1]
