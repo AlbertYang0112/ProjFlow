@@ -153,7 +153,7 @@ if __name__ == '__main__':
             idx = np.where(np.all(node == n, axis=1))
             assert len(idx) == 1, f"Node: {n}, where: {idx}"
             idx = idx[0]
-            counts[idx, featureIdx] += c
+            counts[idx, i] += c
     # Construct the Graph
     print("Construct the Graph")
     G = nx.Graph()
@@ -197,5 +197,4 @@ if __name__ == '__main__':
         plt.axis('off')
         plt.imshow(np.power(adjacencyMat, ADJ_FIG_GAMMA))
         plt.savefig(args.adjFig)
-        # plt.imsave(args.adjFig, np.power(adjacencyMat, ADJ_FIG_GAMMA))
     print("Done")
