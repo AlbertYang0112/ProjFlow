@@ -79,6 +79,7 @@ def preproc(filePath, fileName, outputPath, tqdmHandle, blockSize):
     tqdmHandle.set_description(f"Writing CSV to {outputPath}")
     # Export the CSV and write the stat
     dataset.to_csv(outputPath)
+    stat.loc[0, 'Filename'] = fileName
     stat.loc[0, 'FilteredPings'] = dataset.shape[0]
     stat.loc[0, 'OOBPings'] = oobCount
     stat.loc[0, 'AccErrPings'] = np.sum(errPings)
