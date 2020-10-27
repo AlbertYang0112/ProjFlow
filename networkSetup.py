@@ -1,6 +1,7 @@
 import os
 from platform import node
 import sys
+from pyproj import Proj, Transformer, CRS
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -14,6 +15,14 @@ DATA_TIME_OFFSET = 0
 DAY_LENGTH = 24 * 60 * 60
 DEFAULT_TIME_INTERVAL = 180
 ADJ_FIG_GAMMA = 0.25
+AUSTIN_PROJ4_DESC = "+proj=lcc \
+    +lat_1=31.8833333333333 +lat_2=30.1166666666667 +lat_0=29.6666666666667 \
+    +lon_0=-100.333333333333 +x_0=2296583.333333 +y_0=9842500 \
+    +datum=NAD83 +units=m +no_defs"
+crsWGS84 = CRS.from_epsg(4326)
+crsAustin = CRS.from_proj4(AUSTIN_PROJ4_DESC)
+transformer = Transformer.from_crs(crsWGS84, crsAustin)
+iTransformer = Transformer.from_crs(crsAustin, crsWGS84)
 
 parser = argparse.ArgumentParser(description="Generate The Map")
 parser.add_argument('inputDir', type=str, metavar="DirIn", help="Preprocessed Dataset")
@@ -25,6 +34,9 @@ parser.add_argument('--sigma', type=float, metavar="Sigma", help="Edge Weight Sc
 parser.add_argument('--pingTh', type=int, metavar="pingTh", help="Edge Filtering Threshold", default=10)
 parser.add_argument('--nxFileDir', type=str, metavar="nxFileDir", help="Path to dump the networkx file.", default='')
 parser.add_argument('--adjFig', type=str, metavar="adjFig", help="Path to save the figure of adjacency matrix.", default='')
+parser.add_argument("--mapLbX", type=float, default=30.18)
+parser.add_argument("--mapLbY", type=float, default=-97.92)
+parser.add_argument("--size", type=float, default=1000)
 
 def geohashMix(x, y):
     return ((x << 16) | y) & 0xFFFFFFFF
@@ -154,13 +166,23 @@ if __name__ == '__main__':
             assert len(idx) == 1, f"Node: {n}, where: {idx}"
             idx = idx[0]
             counts[idx, i] += c
+    # Get the map boundary
+    mapLbCoord = transformer.transform(args.mapLbX, args.mapLbY)
+    nodeCoord = np.zeros_like(node, dtype=np.float)
     # Construct the Graph
     print("Construct the Graph")
     G = nx.Graph()
     nodeWeight = np.sum(counts, axis=1)
     nodeHashSet = set(nodeHash)
     for idx, (x, y) in tqdm(enumerate(node)):
-        G.add_node(nodeHash[idx], weight=nodeWeight[idx], viz={'position': {'x': x, 'y': y, 'z': 0}})
+        blkCoord = np.array([x, y]) * args.size + args.size / 2 + mapLbCoord
+        nodeCoord[idx, :] = iTransformer.transform(blkCoord[0], blkCoord[1])
+        G.add_node(
+            nodeHash[idx], 
+            weight=nodeWeight[idx], 
+            viz={'position': {'x': x, 'y': y, 'z': 0}}, 
+            latitude=nodeCoord[idx, 0], longitude=nodeCoord[idx, 1]
+        )
         meshLb = np.max([[0, x-args.edgeTh], [0, y-args.edgeTh]], axis=1)
         meshUb = np.min([[0xFFFF, x+args.edgeTh], [0xFFFF, y+args.edgeTh]], axis=1)
         deltaX = np.linspace(meshLb[0], meshUb[0], meshUb[0] - meshLb[0] + 1, dtype=np.int)
@@ -186,7 +208,7 @@ if __name__ == '__main__':
     print(f"Sparsity: {sparsity}")
     np.savetxt(args.adjFile, adjacencyMat, delimiter=',')
     np.savetxt(args.featureFile, counts, delimiter=',', fmt='%d')
-    np.savetxt('coordinate.csv', node, delimiter=',', fmt='%d')
+    np.savetxt('coordinate.csv', np.concatenate((node, nodeCoord), axis=1), delimiter=',', fmt="%d, %d, %.18f, %.18f")
     with open('time.csv', 'w') as f:
         for i in range(len(nodeTimeList)):
             print(getTimeStr(nodeTimeList[timeOrder[i]]), file=f)
