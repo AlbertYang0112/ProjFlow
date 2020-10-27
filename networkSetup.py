@@ -32,6 +32,7 @@ parser.add_argument("--interval", type=int, metavar='interval', help='time inter
 parser.add_argument('--edgeTh', type=int, metavar="nodeTh", help="Edge Filtering Threshold", default=2)
 parser.add_argument('--sigma', type=float, metavar="Sigma", help="Edge Weight Scaling Factor", default=1)
 parser.add_argument('--pingTh', type=int, metavar="pingTh", help="Edge Filtering Threshold", default=10)
+parser.add_argument('--userTh', type=int, metavar="userTh", help="User Filtering Threshold", default=2)
 parser.add_argument('--nxFileDir', type=str, metavar="nxFileDir", help="Path to dump the networkx file.", default='')
 parser.add_argument('--adjFig', type=str, metavar="adjFig", help="Path to save the figure of adjacency matrix.", default='')
 parser.add_argument("--mapLbX", type=float, default=30.18)
@@ -123,6 +124,7 @@ if __name__ == '__main__':
     fileLoader = tqdm(csvFiles)
     nodeList = []
     nodeCountList = []
+    userCountList = []
     nodeTimeList = []
     if len(args.nxFileDir) > 0:
         os.makedirs(args.nxFileDir, exist_ok=True)
@@ -133,12 +135,19 @@ if __name__ == '__main__':
         dataIdx = dataSplit(rawData, interval)
         for idx, t in dataIdx:
             dataSlice = rawData.loc[idx]
-            nodes, nodeCount = np.unique(dataSlice.loc[:, ("bx", "by")], axis=0, return_counts=True)
-            validNodeIdx = nodeCount > args.pingTh
+            nodes, nodeIdx, nodeCount = np.unique(
+                dataSlice.loc[:, ("bx", "by")], axis=0, 
+                return_counts=True, return_inverse=True
+            )
+            userCnt = np.zeros_like(nodeCount)
+            for i in range(len(nodeCount)):
+                userCnt[i] = len(np.unique(dataSlice.loc[nodeIdx == i, "advertiser_id"]))
+            validNodeIdx = np.logical_and(nodeCount > args.pingTh, userCnt > args.userTh)
             validNodes = nodes[validNodeIdx]
             validNodeCounts = nodeCount[validNodeIdx]
             nodeList.append(validNodes)
             nodeCountList.append(validNodeCounts)
+            userCountList.append(userCnt)
             nodeTimeList.append(t)
             if len(args.nxFileDir) > 0:
                 graphSlice = netSetupWithCount(dataSlice, args.edgeTh, args.pingTh)
@@ -161,7 +170,7 @@ if __name__ == '__main__':
     print(f"Collect the features")
     for i in tqdm(range(featureCnt), total=featureCnt):
         featureIdx = timeOrder[i]
-        for n, c in zip(nodeList[featureIdx], nodeCountList[featureIdx]):
+        for n, c in zip(nodeList[featureIdx], userCountList[featureIdx]):
             idx = np.where(np.all(node == n, axis=1))
             assert len(idx) == 1, f"Node: {n}, where: {idx}"
             idx = idx[0]
