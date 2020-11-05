@@ -79,7 +79,7 @@ def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx,
     if chks:
         max_va_val = evl_val
         y_pred, len_pred = class_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
-        evl_pred, _ = class_evaluation(x_test[0:len_val, step_idx + n_his, :, :], y_pred)
+        evl_pred, _ = class_evaluation(x_test[0:len_pred, step_idx + n_his, :, :], y_pred)
         max_val = evl_pred
     return max_va_val, max_val
 

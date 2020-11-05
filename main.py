@@ -13,11 +13,14 @@ from os.path import join as pjoin
 
 import tensorflow as tf
 import os
+import numpy as np
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 tf.Session(config=config)
+tf.set_random_seed(42)
+np.random.seed(42)
 
 from utils.math_graph import *
 from data_loader.data_utils import *
