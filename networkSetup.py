@@ -1,3 +1,4 @@
+from argparse import RawDescriptionHelpFormatter
 import os
 from platform import node
 import sys
@@ -25,14 +26,16 @@ transformer = Transformer.from_crs(crsWGS84, crsAustin)
 iTransformer = Transformer.from_crs(crsAustin, crsWGS84)
 
 parser = argparse.ArgumentParser(description="Generate The Map")
-parser.add_argument('inputDir', type=str, metavar="DirIn", help="Preprocessed Dataset")
+parser.add_argument('dataFile', type=str, metavar="DataFile", help="Preprocessed Dataset")
 parser.add_argument('adjFile', type=str, metavar="AdjFile", help='Adjacency Matrix File')
 parser.add_argument('featureFile', type=str, metavar="FeatureFile", help='Feature File')
-parser.add_argument("--interval", type=int, metavar='interval', help='time interval (minute)', default=DEFAULT_TIME_INTERVAL)
-parser.add_argument('--edgeTh', type=int, metavar="nodeTh", help="Edge Filtering Threshold", default=2)
+parser.add_argument("--interval", type=int, metavar='interval', help='interval between slices (minute)', default=-1)
+parser.add_argument("--windowSize", type=float, help="Length of the slice (minute)", default=-1)
+parser.add_argument('--edgeTh', type=int, metavar="nodeTh", help="Edge Filtering Threshold", default=5)
 parser.add_argument('--sigma', type=float, metavar="Sigma", help="Edge Weight Scaling Factor", default=1)
 parser.add_argument('--pingTh', type=int, metavar="pingTh", help="Edge Filtering Threshold", default=10)
 parser.add_argument('--userTh', type=int, metavar="userTh", help="User Filtering Threshold", default=2)
+parser.add_argument('--avgNodeUserTh', type=int, metavar="userTh", help="User Filtering Threshold", default=2)
 parser.add_argument('--nxFileDir', type=str, metavar="nxFileDir", help="Path to dump the networkx file.", default='')
 parser.add_argument('--adjFig', type=str, metavar="adjFig", help="Path to save the figure of adjacency matrix.", default='')
 parser.add_argument("--mapLbX", type=float, default=30.18)
@@ -94,34 +97,61 @@ def netSetupWithCount(data, distTh, countTh):
                 G.add_edge(code, nodeHash[i], weight = 1.0 / dist)
     return G
 
-def dataSplit(data, interval):
-    baseUnixStamp = (data.loc[0, 'location_at'] + DATA_TIME_OFFSET) // DAY_LENGTH * DAY_LENGTH - DATA_TIME_OFFSET
+def dataSplit(dataDay1, dataDay2, interval, windowSize):
+    baseUnixStamp = (dataDay1.loc[0, 'location_at'] + DATA_TIME_OFFSET) // DAY_LENGTH * DAY_LENGTH - DATA_TIME_OFFSET
+    if dataDay2 is not None:
+        baseUnixStamp2 = (dataDay2.loc[0, 'location_at'] + DATA_TIME_OFFSET) // DAY_LENGTH * DAY_LENGTH - DATA_TIME_OFFSET
+        assert baseUnixStamp2 - baseUnixStamp == DAY_LENGTH_MIN * 60
     splitCnt = int(DAY_LENGTH_MIN / interval)
     idxList = []
+    # print(baseUnixStamp)
     for splitIdx in range(splitCnt):
         timeStampLb = splitIdx * interval * 60 + baseUnixStamp
-        timeStampUb = (splitIdx + 1) * interval * 60 + baseUnixStamp
-        sel = np.logical_and(data['location_at'] >= timeStampLb, data['location_at'] < timeStampUb)
-        idx = data[sel].index
-        idxList.append((idx, getAustinTime(timeStampLb)))
+        timeStampUb = timeStampLb + windowSize * 60
+        # print(f"Split {splitIdx}: {timeStampLb} - {timeStampUb} {getAustinTime(timeStampLb)} {getAustinTime(timeStampUb)}")
+        sel = np.logical_and(dataDay1['location_at'] >= timeStampLb, dataDay1['location_at'] < timeStampUb)
+        idxDay1 = dataDay1[sel].index
+        if dataDay2 is not None and splitIdx * interval + windowSize > DAY_LENGTH_MIN:
+            selRoll = dataDay2['location_at'] < timeStampUb
+            idxDay2 = dataDay2[selRoll].index
+            # print(f"Roll Split {splitIdx}: {getAustinTime(rollTimeStampLb)}-{getAustinTime(rollTimeStamlUb)}")
+            idxList.append((idxDay1, idxDay2, getAustinTime(timeStampLb)))
+        else:
+            idxList.append((idxDay1, None, getAustinTime(timeStampLb)))
+
     return idxList
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    interval = args.interval
+    if args.windowSize == -1 and args.interval == -1:
+        print("Set both window size & interval to default 3hrs")
+        windowSize = DEFAULT_TIME_INTERVAL
+        interval = DEFAULT_TIME_INTERVAL
+    elif args.windowSize == -1:
+        windowSize = args.interval
+        interval = args.interval
+    elif args.interval == -1:
+        windowSize = args.windowSize
+        interval = args.windowSize
+    else:
+        windowSize = args.windowSize
+        interval = args.interval
     DAY_LENGTH_MIN = 24 * 60
-    if DAY_LENGTH_MIN % interval != 0:
-        print(f"Day cannot be splitted into intervals with length of {interval} min.")
-        interval = DAY_LENGTH_MIN / int(DAY_LENGTH_MIN / interval)
-        print(f"Using {interval} instead")
+    if (DAY_LENGTH_MIN - windowSize) % interval != 0:
+        print(f"Day cannot be splitted into slices with window size {windowSize} min, interval {interval} min.")
+        interval = (DAY_LENGTH_MIN - windowSize) / int((DAY_LENGTH_MIN-windowSize) / interval)
+        print(f"Using interval = {interval}mins instead")
     # Find all the CSV files
     csvFiles = []
-    for path, _, files in os.walk(args.inputDir):
-        for file in files:
-            if file[-4:] == '.csv' and file != 'stat.csv':
-                csvFiles.append((path, file))
+    with open(args.inputDir) as f:
+        for l in f.readlines():
+            l = l.strip()
+            pathSeg = l.split("/")
+            p = "/".join(pathSeg[:-1])
+            f = pathSeg[-1]
+            csvFiles.append((p, f))
     print(f"Found {len(csvFiles)} files under {args.inputDir}")
-    fileLoader = tqdm(csvFiles)
+    # fileLoader = tqdm(csvFiles)
     nodeList = []
     nodeCountList = []
     userCountList = []
@@ -129,12 +159,21 @@ if __name__ == '__main__':
     if len(args.nxFileDir) > 0:
         os.makedirs(args.nxFileDir, exist_ok=True)
     # Collect all the nodes and ping counts
-    for p, f in fileLoader:
-        filePath = os.path.join(p, f)
-        rawData = pd.read_csv(filePath)
-        dataIdx = dataSplit(rawData, interval)
-        for idx, t in dataIdx:
-            dataSlice = rawData.loc[idx]
+    for fileIdx in tqdm(range(len(csvFiles))):
+        p, f = csvFiles[fileIdx]
+        filePath1 = os.path.join(p, f)
+        rawData1 = pd.read_csv(filePath1)
+        rawData2 = None
+        if fileIdx + 1 < len(csvFiles):
+            p2, f2 = csvFiles[fileIdx + 1]
+            filePath2 = os.path.join(p2, f2)
+            rawData2 = pd.read_csv(filePath2)
+        dataIdx = dataSplit(rawData1, rawData2, interval, windowSize)
+        for idxDay1, idxDay2, t in dataIdx:
+            dataSlice = rawData1.loc[idxDay1]
+            if idxDay2 is not None:
+                dataSliceDay2 = rawData2.loc[idxDay2]
+                dataSlice = pd.concat((dataSlice, dataSliceDay2), axis=0, ignore_index=True)
             nodes, nodeIdx, nodeCount = np.unique(
                 dataSlice.loc[:, ("bx", "by")], axis=0, 
                 return_counts=True, return_inverse=True
@@ -165,23 +204,33 @@ if __name__ == '__main__':
     nodeCnt = int(node.shape[0])
     print(f"Found {nodeCnt} unique nodes")
     ## Collect the features
-    counts = np.zeros((nodeCnt, featureCnt), dtype=np.int)
+    featureUser = np.zeros((nodeCnt, featureCnt), dtype=np.int)
+    featurePing = np.zeros((nodeCnt, featureCnt), dtype=np.int)
     timeOrder = np.argsort(nodeTimeList)
     print(f"Collect the features")
     for i in tqdm(range(featureCnt), total=featureCnt):
         featureIdx = timeOrder[i]
-        for n, c in zip(nodeList[featureIdx], userCountList[featureIdx]):
+        for n, userCnt, pingCnt in zip(nodeList[featureIdx], userCountList[featureIdx], nodeCountList[featureIdx]):
             idx = np.where(np.all(node == n, axis=1))
             assert len(idx) == 1, f"Node: {n}, where: {idx}"
             idx = idx[0]
-            counts[idx, i] += c
+            featureUser[idx, i] += userCnt
+            featurePing[idx, i] += pingCnt
+    # Filter the sparse node
+    avgFeatureUser = np.average(featureUser, axis=1)
+    validNode = avgFeatureUser > args.avgNodeUserTh
+    node = node[validNode, :]
+    nodeHash = nodeHash[validNode]
+    featureUser = featureUser[validNode, :]
+    featurePing = featurePing[validNode, :]
+    print(f"Filtered {np.sum(~validNode)} sparse nodes")
     # Get the map boundary
     mapLbCoord = transformer.transform(args.mapLbX, args.mapLbY)
     nodeCoord = np.zeros_like(node, dtype=np.float)
     # Construct the Graph
     print("Construct the Graph")
     G = nx.Graph()
-    nodeWeight = np.sum(counts, axis=1)
+    nodeWeight = np.sum(featureUser, axis=1)
     nodeHashSet = set(nodeHash)
     for idx, (x, y) in tqdm(enumerate(node)):
         blkCoord = np.array([x, y]) * args.size + args.size / 2 + mapLbCoord
@@ -210,17 +259,19 @@ if __name__ == '__main__':
                 edgeWeight = np.exp(-dist2 / (args.sigma ** 2))
                 G.add_edge(code, nodeHash[idx], weight = edgeWeight)
     print("Write Files")
-    if len(args.nxFileDir) > 0:
-        nx.write_gexf(G, "OverallG.gexf")
     adjacencyMat = nx.convert_matrix.to_numpy_matrix(G)
     sparsity = np.sum(adjacencyMat < 1e-8) / (adjacencyMat.shape[0] * adjacencyMat.shape[1])
     print(f"Sparsity: {sparsity}")
     np.savetxt(args.adjFile, adjacencyMat, delimiter=',')
-    np.savetxt(args.featureFile, counts, delimiter=',', fmt='%d')
-    np.savetxt('coordinate.csv', np.concatenate((node, nodeCoord), axis=1), delimiter=',', fmt="%d, %d, %.18f, %.18f")
-    with open('time.csv', 'w') as f:
+    np.savetxt(args.featureFile, featureUser, delimiter=',', fmt='%d')
+    exportFileNamePrefix = '.'.join(args.featureFile.split('.')[:-1])
+    np.savetxt(exportFileNamePrefix + "Ping.csv", featurePing, delimiter=',', fmt='%d')
+    np.savetxt(exportFileNamePrefix + "Cord.csv", np.concatenate((node, nodeCoord), axis=1), delimiter=',', fmt="%d, %d, %.18f, %.18f")
+    with open(exportFileNamePrefix + 'Time.csv', 'w') as f:
         for i in range(len(nodeTimeList)):
             print(getTimeStr(nodeTimeList[timeOrder[i]]), file=f)
+    # if len(args.nxFileDir) > 0:
+    nx.write_gexf(G, exportFileNamePrefix + "OverallG.gexf")
     if len(args.adjFig) > 0:
         plt.set_cmap('RdBu_r')
         plt.figure(figsize=(8, 8))
