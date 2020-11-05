@@ -10,6 +10,35 @@ from os.path import join as pjoin
 import tensorflow as tf
 
 
+def build_cls_model(inputs, n_his, Ks, Kt, blocks, keep_prob, cls):
+    x = inputs[:, 0:n_his, :, :]
+
+    # Ko>0: kernel size of temporal convolution in the output layer.
+    Ko = n_his
+    # ST-Block
+    for i, channels in enumerate(blocks):
+        x = st_conv_block(x, Ks, Kt, channels, i, keep_prob, act_func='GLU')
+        Ko -= 2 * (Ks - 1)
+
+    # Output Layer
+    if Ko > 1:
+        y = output_layer(x, Ko, 'output_layer', cls=cls)
+    else:
+        raise ValueError(f'ERROR: kernel size Ko must be greater than 1, but received "{Ko}".')
+
+    gt = inputs[:, n_his:n_his + 1, :, :]
+    mean = tf.constant(0.0, shape=gt.shape)
+    label = tf.greater(gt, mean)
+    label = tf.reduce_sum(tf.to_int32(label), 3)
+
+    train_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=label, logits=y)
+    train_loss = tf.reduce_sum(train_loss, [0, 1, 2])
+    single_pred = y[:, 0, :, :]
+    single_pred = tf.math.argmax(single_pred, 2)
+    tf.add_to_collection(name='y_pred', value=single_pred)
+    return train_loss, single_pred
+
+
 def build_model(inputs, n_his, Ks, Kt, blocks, keep_prob):
     '''
     Build the base model.
@@ -31,23 +60,15 @@ def build_model(inputs, n_his, Ks, Kt, blocks, keep_prob):
 
     # Output Layer
     if Ko > 1:
-        y = output_layer(x, Ko, 'output_layer')
+        y = output_layer(x, Ko, 'output_layer', cls=1)
     else:
         raise ValueError(f'ERROR: kernel size Ko must be greater than 1, but received "{Ko}".')
 
     tf.add_to_collection(name='copy_loss',
                          value=tf.nn.l2_loss(inputs[:, n_his - 1:n_his, :, :] - inputs[:, n_his:n_his + 1, :, :]))
 
-    gt = inputs[:, n_his:n_his + 1, :, :]
-    mean = tf.constant(0.0, shape=[12, 1, 59, 1])
-    label = tf.greater(gt, mean)
-    label = tf.reduce_sum(tf.to_int32(label), 3)
-
-    train_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=label, logits=y)
-    train_loss = tf.reduce_sum(train_loss, [0, 1, 2])
-    # train_loss = tf.nn.l2_loss(y - inputs[:, n_his:n_his + 1, :, :])
+    train_loss = tf.nn.l2_loss(y - inputs[:, n_his:n_his + 1, :, :])
     single_pred = y[:, 0, :, :]
-    single_pred = tf.math.argmax(single_pred, 2)
     tf.add_to_collection(name='y_pred', value=single_pred)
     return train_loss, single_pred
 

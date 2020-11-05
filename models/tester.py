@@ -52,17 +52,36 @@ def class_pred(sess, y_pred, seq, batch_size, n_his, n_pred, step_idx, dynamic_b
     for i in gen_batch(seq, min(batch_size, len(seq)), dynamic_batch=dynamic_batch):
         # Note: use np.copy() to avoid the modification of source data.
         test_seq = np.copy(i[:, 0:n_his + 1, :, :])
-        step_list = []
-        for j in range(n_pred):
-            pred = sess.run(y_pred,
-                            feed_dict={'data_input:0': test_seq, 'keep_prob:0': 1.0})
-            if isinstance(pred, list):
-                pred = np.array(pred[0])
-            step_list.append(pred)
-        pred_list.append(step_list)
-    #  pred_array -> [n_pred, batch_size, n_route, C_0)
-    pred_array = np.concatenate(pred_list, axis=1)
-    return pred_array[step_idx], pred_array.shape[1]
+        pred = sess.run(y_pred,feed_dict={'data_input:0': test_seq, 'keep_prob:0': 1.0})
+        if isinstance(pred, list):
+            pred = np.array(pred[0])
+        pred_list.append(pred)
+    pred_array = np.concatenate(pred_list, axis=0)
+    return pred_array, pred_array.shape[0]
+
+
+def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, max_va_val, max_val):
+    x_val, x_test, x_stats = inputs.get_data('val'), inputs.get_data('test'), inputs.get_stats()
+
+    if n_his + n_pred > x_val.shape[1]:
+        raise ValueError(f'ERROR: the value of n_pred "{n_pred}" exceeds the length limit.')
+
+    y_val, len_val = class_pred(sess, pred, x_val, batch_size, n_his, n_pred, step_idx)
+    evl_val, evl_0 = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], y_val)
+
+    # compare with copy prediction
+    cp_val = x_val[0:len_val, step_idx + n_his - 1, :, 0]
+    cp_val = (cp_val > 0).astype(int)
+    evl_copy, _ = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], cp_val)
+    print('Val acc', round(evl_val*100, 3), 'Copy val acc', round(evl_copy*100, 3), 'Zero val acc', round(evl_0*100, 3))
+
+    chks = evl_val > max_va_val
+    if chks:
+        max_va_val = evl_val
+        y_pred, len_pred = class_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
+        evl_pred, _ = class_evaluation(x_test[0:len_val, step_idx + n_his, :, :], y_pred)
+        max_val = evl_pred
+    return max_va_val, max_val
 
 
 def model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val):
@@ -83,30 +102,58 @@ def model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min
     if n_his + n_pred > x_val.shape[1]:
         raise ValueError(f'ERROR: the value of n_pred "{n_pred}" exceeds the length limit.')
 
-    # y_val, len_val = multi_pred(sess, pred, x_val, batch_size, n_his, n_pred, step_idx)
-    # evl_val = evaluation(x_val[0:len_val, step_idx + n_his, :, :], y_val, x_stats)
+    y_val, len_val = multi_pred(sess, pred, x_val, batch_size, n_his, n_pred, step_idx)
+    evl_val = evaluation(x_val[0:len_val, step_idx + n_his, :, :], y_val, x_stats)
 
-    y_val, len_val = class_pred(sess, pred, x_val, batch_size, n_his, n_pred, step_idx)
-    evl_val = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], y_val)
-    cp_val = x_val[0:len_val, step_idx + n_his - 2, :, 0]
-    cp_val = (cp_val > 0).astype(int)
-    evl_copy = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], cp_val)
-    print(evl_val, evl_copy)
-    # # chks: indicator that reflects the relationship of values between evl_val and min_va_val.
-    # chks = evl_val < min_va_val
-    # # update the metric on test set, if model's performance got improved on the validation.
-    # if sum(chks):
-    #     min_va_val[chks] = evl_val[chks]
-    #     y_pred, len_pred = multi_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
-    #     evl_pred = evaluation(x_test[0:len_pred, step_idx + n_his, :, :], y_pred, x_stats)
-    #     min_val = evl_pred
-    chks = evl_val > min_va_val
-    if chks:
-        min_va_val = evl_val
-        y_pred, len_pred = class_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
-        evl_pred = class_evaluation(x_test[0:len_val, step_idx + n_his, :, :], y_pred)
+    # chks: indicator that reflects the relationship of values between evl_val and min_va_val.
+    chks = evl_val < min_va_val
+    # update the metric on test set, if model's performance got improved on the validation.
+    if sum(chks):
+        min_va_val[chks] = evl_val[chks]
+        y_pred, len_pred = multi_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
+        evl_pred = evaluation(x_test[0:len_pred, step_idx + n_his, :, :], y_pred, x_stats)
         min_val = evl_pred
+
     return min_va_val, min_val
+
+
+def model_test_cls(inputs, batch_size, n_his, n_pred, load_path='./output/models/'):
+    '''
+    Load and test saved model from the checkpoint.
+    :param inputs: instance of class Dataset, data source for test.
+    :param batch_size: int, the size of batch.
+    :param n_his: int, the length of historical records for training.
+    :param n_pred: int, the length of prediction.
+    :param inf_mode: str, test mode - 'merge / multi-step test' or 'separate / single-step test'.
+    :param load_path: str, the path of loaded model.
+    '''
+    start_time = time.time()
+    model_path = tf.train.get_checkpoint_state(load_path).model_checkpoint_path
+
+    test_graph = tf.Graph()
+
+    with test_graph.as_default():
+        saver = tf.train.import_meta_graph(pjoin(f'{model_path}.meta'))
+
+    with tf.Session(graph=test_graph) as test_sess:
+        saver.restore(test_sess, tf.train.latest_checkpoint(load_path))
+        print(f'>> Loading saved model from {model_path} ...')
+
+        pred = test_graph.get_collection('y_pred')
+
+        x_test, x_stats = inputs.get_data('test'), inputs.get_stats()
+
+        y_test, len_test = class_pred(test_sess, pred, x_test, batch_size, n_his, n_pred, 0)
+        evl, evl2 = class_evaluation(x_test[0:len_test, n_his, :, :], y_test)
+
+        cp_val = x_test[0:len_test, n_his - 1, :, 0]
+        cp_val = (cp_val > 0).astype(int)
+        evl_copy, _ = class_evaluation(x_test[0:len_test, n_his, :, :], cp_val)
+
+        print(f'Test Accuracy {evl:7.3%}; Copy accuracy {evl_copy:7.3%}; All Zero accuracy {evl2:7.3%}')
+        print(f'Model Test Time {time.time() - start_time:.3f}s')
+
+    print('Testing model finished!')
 
 
 def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path='./output/models/'):

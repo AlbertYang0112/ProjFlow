@@ -69,8 +69,8 @@ def class_evaluation(y, y_):
     sh = tmp.shape
     tmp2 = gt - np.zeros((sh[0], sh[1]), dtype=int)
     acc = 1 - np.count_nonzero(tmp) / (sh[0] * sh[1])
-    acc2 = 1 - np.count_nonzero(tmp2) / (sh[0] * sh[1])
-    return acc
+    acc2 = 1 - np.count_nonzero(tmp2) / (sh[0] * sh[1])  # accuracy if prediction is all zero
+    return acc, acc2
 
 
 def evaluation(y, y_, x_stats):
