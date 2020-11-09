@@ -6,6 +6,7 @@
 # @Github   : https://github.com/VeritasYin/Project_Orion
 
 import numpy as np
+from sklearn.metrics import f1_score
 
 
 def z_score(x, mean, std):
@@ -31,6 +32,8 @@ def z_inverse(x, mean, std):
     '''
     return x * std + mean
 
+def F1(v, v_):
+    return f1_score(v, v_, average='macro')
 
 def MAPE(v, v_):
     '''
@@ -88,7 +91,7 @@ def evaluation(y, y_, x_stats):
         # single_step case
         v = z_inverse(y, x_stats['mean'], x_stats['std'])
         v_ = z_inverse(y_, x_stats['mean'], x_stats['std'])
-        return np.array([MAPE(v, v_), MAE(v, v_), RMSE(v, v_)])
+        return np.array([F1(v, v_), MAPE(v, v_), MAE(v, v_), RMSE(v, v_)])
     else:
         # multi_step case
         tmp_list = []
