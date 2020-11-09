@@ -30,7 +30,11 @@ from models.tester import model_test, model_test_cls
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--n_route', type=int, default=297)
+parser.add_argument('graph', type=str, default='de')
+parser.add_argument('feature', type=str, default='de')
+parser.add_argument('interval', type=int)
+parser.add_argument('--daySlot', type=int, default=240)
+# parser.add_argument('--n_route', type=int, default=297)
 parser.add_argument('--n_his', type=int, default=12)
 parser.add_argument('--n_pred', type=int, default=1)
 parser.add_argument('--batch_size', type=int, default=12)
@@ -40,28 +44,30 @@ parser.add_argument('--ks', type=int, default=3)
 parser.add_argument('--kt', type=int, default=3)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--opt', type=str, default='RMSProp')
-parser.add_argument('--graph', type=str, default='de')
 parser.add_argument('--inf_mode', type=str, default='sep')
 parser.add_argument('--cls', type=int, default=2)
 
 args = parser.parse_args()
 print(f'Training configs: {args}')
 
-n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
+# n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
 Ks, Kt = args.ks, args.kt
 # blocks: settings of channel size in st_conv_blocks / bottleneck design
 blocks = [[1, 32, 64], [64, 32, 128]]
 
 # Load wighted adjacency matrix W
-if args.graph == 'default':
-    W = weight_matrix(pjoin('./dataset', f'PeMSD7_W_{n}.csv'))
-    data_file = f'PeMSD7_V_{n}.csv'
-    day_slot = 288
-else:
-    # load customized graph weight matrix
-    W = weight_matrix(pjoin('./dataset/temp', 'adjFS.csv'))
-    data_file = 'featFS.csv'
-    day_slot = 24
+W = weight_matrix(args.graph)
+n = W.shape[0]
+n_his, n_pred = args.n_his, args.n_pred
+# if args.graph == 'default':
+#     W = weight_matrix(pjoin('./dataset', f'PeMSD7_W_{n}.csv'))
+#     data_file = f'PeMSD7_V_{n}.csv'
+#     day_slot = 288
+# else:
+#     # load customized graph weight matrix
+#     W = weight_matrix(pjoin('./dataset/temp', 'adjFS.csv'))
+#     data_file = 'featFS.csv'
+#     day_slot = 24
 
 # Calculate graph kernel
 L = scaled_laplacian(W)
@@ -71,7 +77,7 @@ tf.add_to_collection(name='graph_kernel', value=tf.cast(tf.constant(Lk), tf.floa
 
 # Data Preprocessing
 n_train, n_val, n_test = 111, 5, 5
-PeMS = data_gen(pjoin('./dataset/temp', data_file), (n_train, n_val, n_test), n, n_his + n_pred, day_slot)
+PeMS = data_gen(args.feature, (n_train, n_val, n_test), n, n_his + n_pred, args.interval)
 print(f'>> Loading dataset with Mean: {PeMS.mean:.2f}, STD: {PeMS.std:.2f}')
 
 if __name__ == '__main__':

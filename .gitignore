@@ -4,3 +4,4 @@ build
 sketch*
 *.csv
 *.gexf
+*.pyc

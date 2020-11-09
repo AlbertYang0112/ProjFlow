@@ -20,6 +20,7 @@ AUSTIN_PROJ4_DESC = "+proj=lcc \
     +lat_1=31.8833333333333 +lat_2=30.1166666666667 +lat_0=29.6666666666667 \
     +lon_0=-100.333333333333 +x_0=2296583.333333 +y_0=9842500 \
     +datum=NAD83 +units=m +no_defs"
+DAY_LENGTH_MIN = 24 * 60
 crsWGS84 = CRS.from_epsg(4326)
 crsAustin = CRS.from_proj4(AUSTIN_PROJ4_DESC)
 transformer = Transformer.from_crs(crsWGS84, crsAustin)
@@ -121,8 +122,7 @@ def dataSplit(dataDay1, dataDay2, interval, windowSize):
 
     return idxList
 
-if __name__ == '__main__':
-    args = parser.parse_args()
+def setWindowParam(args):
     if args.windowSize == -1 and args.interval == -1:
         print("Set both window size & interval to default 3hrs")
         windowSize = DEFAULT_TIME_INTERVAL
@@ -136,21 +136,26 @@ if __name__ == '__main__':
     else:
         windowSize = args.windowSize
         interval = args.interval
-    DAY_LENGTH_MIN = 24 * 60
     if (DAY_LENGTH_MIN - windowSize) % interval != 0:
         print(f"Day cannot be splitted into slices with window size {windowSize} min, interval {interval} min.")
         interval = (DAY_LENGTH_MIN - windowSize) / int((DAY_LENGTH_MIN-windowSize) / interval)
         print(f"Using interval = {interval}mins instead")
+    return windowSize, interval
+
+
+if __name__ == '__main__':
+    args = parser.parse_args()
+    windowSize, interval = setWindowParam(args)
     # Find all the CSV files
     csvFiles = []
-    with open(args.inputDir) as f:
+    with open(args.dataFile) as f:
         for l in f.readlines():
             l = l.strip()
             pathSeg = l.split("/")
             p = "/".join(pathSeg[:-1])
             f = pathSeg[-1]
             csvFiles.append((p, f))
-    print(f"Found {len(csvFiles)} files under {args.inputDir}")
+    print(f"Found {len(csvFiles)} files under {args.dataFile}")
     # fileLoader = tqdm(csvFiles)
     nodeList = []
     nodeCountList = []

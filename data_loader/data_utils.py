@@ -25,6 +25,9 @@ class Dataset(object):
 
     def get_len(self, type):
         return len(self.__data[type])
+    
+    def get_feature_num(self, type):
+        return self.__data[type].shape[2]
 
     def z_inverse(self, type):
         return self.__data[type] * self.std + self.mean
@@ -33,9 +36,11 @@ class Dataset(object):
 def m_seq_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
     n_slot = day_slot * len_seq - n_frame + 1
     tmp_seq = np.zeros((n_slot, n_frame, n_route, C_0))
+    print("N Route", n_route)
     for i in range(n_slot):
         sta = i + offset * day_slot
         end = sta + n_frame
+        # print(data_seq.shape, i, sta, end)
         tmp_seq[i, :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame, n_route, C_0])
     return tmp_seq
 
@@ -64,7 +69,7 @@ def seq_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
     return tmp_seq
 
 
-def data_gen(file_path, data_config, n_route, n_frame=21, day_slot=288):
+def data_gen(file_path, data_config, n_route, n_frame, interval):
     '''
     Source file load and dataset generation.
     :param file_path: str, the file path of data source.
@@ -78,9 +83,15 @@ def data_gen(file_path, data_config, n_route, n_frame=21, day_slot=288):
     n_train, n_val, n_test = data_config
     # generate training, validation and test data
     try:
-        data_seq = pd.read_csv(file_path, header=None).values
+        data_seq = pd.read_csv(file_path, header=None).values.transpose()
     except FileNotFoundError:
         print(f'ERROR: input file was not found in {file_path}.')
+    day_slot = 24 * 60 // interval
+    dataStartIdx = 6 * 60 // interval
+    dataEndIdx = 18 * 60 // interval
+    print(data_seq.shape, dataStartIdx, dataEndIdx)
+    data_seq = data_seq[dataStartIdx:-dataEndIdx, :]
+
 
     seq_train = m_seq_gen(n_train, data_seq, 0, n_frame, n_route, day_slot)
     seq_val = m_seq_gen(n_val, data_seq, n_train, n_frame, n_route, day_slot)
