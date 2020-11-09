@@ -33,8 +33,6 @@ def z_inverse(x, mean, std):
     return x * std + mean
 
 def F1(v, v_):
-    print(v)
-    print(v_)
     return f1_score(v, v_, average='macro')
 
 def MAPE(v, v_):
