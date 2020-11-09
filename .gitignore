@@ -5,3 +5,6 @@ sketch*
 *.csv
 *.gexf
 *.pyc
+output/
+*.png
+*.txt

@@ -33,6 +33,8 @@ def z_inverse(x, mean, std):
     return x * std + mean
 
 def F1(v, v_):
+    print(v)
+    print(v_)
     return f1_score(v, v_, average='macro')
 
 def MAPE(v, v_):
@@ -73,7 +75,7 @@ def class_evaluation(y, y_):
     tmp2 = gt - np.zeros((sh[0], sh[1]), dtype=int)
     acc = 1 - np.count_nonzero(tmp) / (sh[0] * sh[1])
     acc2 = 1 - np.count_nonzero(tmp2) / (sh[0] * sh[1])  # accuracy if prediction is all zero
-    return acc, acc2
+    return acc, acc2, F1(gt, y_)
 
 
 def evaluation(y, y_, x_stats):
