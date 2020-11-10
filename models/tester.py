@@ -73,7 +73,7 @@ def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx,
 
     # compare with copy prediction
     cp_val = x_val[0:len_val, step_idx + n_his - 1, :, 0]
-    cp_y = np.digitize(cp_val, x_stats['bin'])
+    cp_y = np.digitize(cp_val, x_stats['bin']) - 1
     # cp_val = (cp_val > 0).astype(int)
     cp_acc, cp_f1, cp_prec, cp_recall = class_evaluation(label_val[0:len_val, step_idx + n_his, :, :], cp_y)
     # evl_copy, _, evl_copy_f1, _, _ = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], cp_val)
