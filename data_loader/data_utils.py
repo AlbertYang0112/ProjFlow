@@ -16,6 +16,7 @@ class Dataset(object):
     def __init__(self, data, stats, label):
         self.__data = data
         self.label = label
+        self.stats = stats
         self.mean = stats['mean']
         self.std = stats['std']
 
@@ -26,7 +27,8 @@ class Dataset(object):
         return self.label[type]
 
     def get_stats(self):
-        return {'mean': self.mean, 'std': self.std}
+        return self.stats
+        # return {'mean': self.mean, 'std': self.std}
 
     def get_len(self, type):
         return len(self.__data[type])
@@ -41,7 +43,6 @@ class Dataset(object):
 def m_seq_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
     n_slot = day_slot * len_seq - n_frame + 1
     tmp_seq = np.zeros((n_slot, n_frame, n_route, C_0))
-    print("N Route", n_route)
     for i in range(n_slot):
         sta = i + offset * day_slot
         end = sta + n_frame
@@ -95,9 +96,8 @@ def data_gen(file_path, data_config, n_route, n_frame, interval):
     day_slot = 24 * 60 // interval
     dataStartIdx = 6 * 60 // interval
     dataEndIdx = 18 * 60 // interval
-    print(data_seq.shape, dataStartIdx, dataEndIdx)
     data_seq = data_seq[dataStartIdx:-dataEndIdx, :]
-    label, labelCenter = getLabel(data_seq)
+    label, labelCenter, dBin = getLabel(data_seq)
 
     seq_train = m_seq_gen(n_train, data_seq, 0, n_frame, n_route, day_slot)
     seq_val = m_seq_gen(n_val, data_seq, n_train, n_frame, n_route, day_slot)
@@ -107,7 +107,7 @@ def data_gen(file_path, data_config, n_route, n_frame, interval):
     label_test = m_seq_gen(n_test, label, n_train + n_val, n_frame, n_route, day_slot)
 
     # x_stats: dict, the stats for the train dataset, including the value of mean and standard deviation.
-    x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train), 'center': labelCenter}
+    x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train), 'center': labelCenter, 'bin': dBin}
 
     # x_train, x_val, x_test: np.array, [sample_size, n_frame, n_route, channel_size].
     x_train = z_score(seq_train, x_stats['mean'], x_stats['std'])
@@ -133,9 +133,12 @@ def getLabel(data, classNum=4, binNum=100, cutoffSigma=3):
     lut[lut > (classNum-1)] = classNum - 1
     label = lut[dx]
     labelCenter = np.zeros(classNum)
-    for i in range(classNum):
-        labelCenter[i] = np.average(bin[lut == i])
-    return label, labelCenter
+    dBin = np.zeros(classNum + 1)
+    dBin[0] = bin[0]
+    dBin[1:] = [bin[lut == i][-1] for i in range(classNum)]
+    labelCenter = [np.average(bin[lut == i]) for i in range(classNum)]
+    print(f"Label Center: {labelCenter}")
+    return label, labelCenter, dBin
 
 
 def gen_batch(inputs, batch_size, label=None, dynamic_batch=False, shuffle=False, roll=False):

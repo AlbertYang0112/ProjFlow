@@ -62,27 +62,30 @@ def class_pred(sess, y_pred, seq, batch_size, n_his, n_pred, step_idx, dynamic_b
 
 def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, max_va_val, max_val):
     x_val, x_test, x_stats = inputs.get_data('val'), inputs.get_data('test'), inputs.get_stats()
+    label_val, label_test = inputs.get_label('val'), inputs.get_label('test')
 
     if n_his + n_pred > x_val.shape[1]:
         raise ValueError(f'ERROR: the value of n_pred "{n_pred}" exceeds the length limit.')
 
     y_val, len_val = class_pred(sess, pred, x_val, batch_size, n_his, n_pred, step_idx)
-    evl_val, evl_0, evl_f1, evl_precision, evl_recall = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], y_val)
+    val_acc, val_f1, val_prec, val_recall = class_evaluation(label_val[0:len_val, step_idx + n_his, :, :], y_val)
+    # evl_val, evl_0, evl_f1, evl_precision, evl_recall = class_evaluation(label_val[0:len_val, step_idx + n_his, :, :], y_val)
 
     # compare with copy prediction
     cp_val = x_val[0:len_val, step_idx + n_his - 1, :, 0]
-    cp_val = (cp_val > 0).astype(int)
-    evl_copy, _, evl_copy_f1, _, _ = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], cp_val)
-    print('Val acc', round(evl_val*100, 3), 'Copy val acc', round(evl_copy*100, 3), 'Zero val acc', round(evl_0*100, 3))
-    print('Val F1', round(evl_f1*100, 3), 'Copy val F1', round(evl_copy_f1*100, 3))
-    print(f"Precision {evl_precision:.3%} Recall {evl_recall:.3%}")
+    cp_y = np.digitize(cp_val, x_stats['bin'])
+    # cp_val = (cp_val > 0).astype(int)
+    cp_acc, cp_f1, cp_prec, cp_recall = class_evaluation(label_val[0:len_val, step_idx + n_his, :, :], cp_y)
+    # evl_copy, _, evl_copy_f1, _, _ = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], cp_val)
+    print(f"Val Acc: {val_acc:.3%} F1 {val_f1:.3%} Precision: {val_prec:.3%} Recall: {val_recall:.3%}")
+    print(f"Copy Acc: {cp_acc:.3%} F1 {cp_f1:.3%} Precision: {cp_prec:.3%} Recall: {cp_recall:.3%}")
 
-    chks = evl_val > max_va_val
+    chks = val_acc > max_va_val
     if chks:
-        max_va_val = evl_val
+        max_va_val = val_acc
         y_pred, len_pred = class_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
-        evl_pred, _, evl_pred_f1, _, _ = class_evaluation(x_test[0:len_pred, step_idx + n_his, :, :], y_pred)
-        max_val = evl_pred
+        test_acc, test_f1, test_prec, test_recall = class_evaluation(label_test[0:len_pred, step_idx + n_his, :, :], y_pred)
+        max_val = test_acc
     return max_va_val, max_val
 
 

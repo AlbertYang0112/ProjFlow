@@ -7,7 +7,7 @@
 
 import numpy as np
 from numpy.lib.function_base import average
-from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 
 def z_score(x, mean, std):
@@ -67,15 +67,17 @@ def MAE(v, v_):
 
 
 def class_evaluation(y, y_):
-    gt = (y > 0).astype(int)
-    gt = gt[:, :, 0]
-    tmp = gt - y_
-    sh = tmp.shape
-    tmp2 = gt - np.zeros((sh[0], sh[1]), dtype=int)
-    acc = 1 - np.count_nonzero(tmp) / (sh[0] * sh[1])
-    acc2 = 1 - np.count_nonzero(tmp2) / (sh[0] * sh[1])  # accuracy if prediction is all zero
-    precision, recall, f1, _ = precision_recall_fscore_support(gt.reshape(-1), y_.reshape(-1), average='macro')
-    return acc, acc2, f1, precision, recall
+    # gt = (y > 0).astype(int)
+    # gt = gt[:, :, 0]
+    # tmp = gt - y_
+    # sh = tmp.shape
+    # tmp2 = gt - np.zeros((sh[0], sh[1]), dtype=int)
+    # acc = 1 - np.count_nonzero(tmp) / (sh[0] * sh[1])
+    # acc2 = 1 - np.count_nonzero(tmp2) / (sh[0] * sh[1])  # accuracy if prediction is all zero
+    y_ = y_.astype(np.int)
+    acc = accuracy_score(y.reshape(-1), y_.reshape(-1))
+    precision, recall, f1, _ = precision_recall_fscore_support(y.reshape(-1), y_.reshape(-1), average='macro')
+    return acc, f1, precision, recall
 
 
 def evaluation(y, y_, x_stats):

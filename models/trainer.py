@@ -18,7 +18,6 @@ import time
 
 def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
     n = inputs.get_feature_num('train')
-    print(n)
     n_his, n_pred = args.n_his, args.n_pred
     Ks, Kt = args.ks, args.kt
     batch_size, epoch, inf_mode, opt = args.batch_size, args.epoch, args.inf_mode, args.opt
