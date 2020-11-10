@@ -75,7 +75,7 @@ def seq_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
     return tmp_seq
 
 
-def data_gen(file_path, data_config, n_route, n_frame, interval):
+def data_gen(file_path, data_config, n_route, n_frame, interval, cls):
     '''
     Source file load and dataset generation.
     :param file_path: str, the file path of data source.
@@ -97,7 +97,7 @@ def data_gen(file_path, data_config, n_route, n_frame, interval):
     dataStartIdx = 6 * 60 // interval
     dataEndIdx = 18 * 60 // interval
     data_seq = data_seq[dataStartIdx:-dataEndIdx, :]
-    label, labelCenter, dBin = getLabel(data_seq)
+    label, labelCenter, dBin = getLabel(data_seq, classNum=cls)
 
     seq_train = m_seq_gen(n_train, data_seq, 0, n_frame, n_route, day_slot)
     seq_val = m_seq_gen(n_val, data_seq, n_train, n_frame, n_route, day_slot)
@@ -138,6 +138,9 @@ def getLabel(data, classNum=4, binNum=100, cutoffSigma=3):
     dBin[1:] = [bin[lut == i][-1] for i in range(classNum)]
     labelCenter = [np.average(bin[lut == i]) for i in range(classNum)]
     print(f"Label Center: {labelCenter}")
+    labelCount = np.bincount(label.reshape(-1))
+    labelDist = labelCount / np.sum(labelCount)
+    print(f"Label Distribution: {labelDist}")
     return label, labelCenter, dBin
 
 
