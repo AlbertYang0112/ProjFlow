@@ -67,22 +67,21 @@ def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx,
         raise ValueError(f'ERROR: the value of n_pred "{n_pred}" exceeds the length limit.')
 
     y_val, len_val = class_pred(sess, pred, x_val, batch_size, n_his, n_pred, step_idx)
-    print("y_val.shape = ", y_val.shape)
-    evl_val, evl_0, evl_f1 = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], y_val)
+    evl_val, evl_0, evl_f1, evl_precision, evl_recall = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], y_val)
 
     # compare with copy prediction
     cp_val = x_val[0:len_val, step_idx + n_his - 1, :, 0]
     cp_val = (cp_val > 0).astype(int)
-    evl_copy, _, evl_copy_f1 = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], cp_val)
-    print("cp_val.shape = ", cp_val.shape)
+    evl_copy, _, evl_copy_f1, _, _ = class_evaluation(x_val[0:len_val, step_idx + n_his, :, :], cp_val)
     print('Val acc', round(evl_val*100, 3), 'Copy val acc', round(evl_copy*100, 3), 'Zero val acc', round(evl_0*100, 3))
-    print('Val F1', round(evl_f1*100, 3), 'Copy val acc', round(evl_copy_f1*100, 3))
+    print('Val F1', round(evl_f1*100, 3), 'Copy val F1', round(evl_copy_f1*100, 3))
+    print(f"Precision {evl_precision:.3%} Recall {evl_recall:.3%}")
 
     chks = evl_val > max_va_val
     if chks:
         max_va_val = evl_val
         y_pred, len_pred = class_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
-        evl_pred, _, evl_pred_f1 = class_evaluation(x_test[0:len_pred, step_idx + n_his, :, :], y_pred)
+        evl_pred, _, evl_pred_f1, _, _ = class_evaluation(x_test[0:len_pred, step_idx + n_his, :, :], y_pred)
         max_val = evl_pred
     return max_va_val, max_val
 

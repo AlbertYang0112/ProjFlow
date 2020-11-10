@@ -6,7 +6,8 @@
 # @Github   : https://github.com/VeritasYin/Project_Orion
 
 import numpy as np
-from sklearn.metrics import f1_score
+from numpy.lib.function_base import average
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 
 def z_score(x, mean, std):
@@ -73,7 +74,9 @@ def class_evaluation(y, y_):
     tmp2 = gt - np.zeros((sh[0], sh[1]), dtype=int)
     acc = 1 - np.count_nonzero(tmp) / (sh[0] * sh[1])
     acc2 = 1 - np.count_nonzero(tmp2) / (sh[0] * sh[1])  # accuracy if prediction is all zero
-    return acc, acc2, F1(gt, y_)
+    precision = precision_score(gt, y_, average='macro')
+    recall = recall_score(gt, y_, average='macro')
+    return acc, acc2, F1(gt, y_), precision, recall
 
 
 def evaluation(y, y_, x_stats):

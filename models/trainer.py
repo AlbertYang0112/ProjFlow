@@ -23,7 +23,8 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
     batch_size, epoch, inf_mode, opt = args.batch_size, args.epoch, args.inf_mode, args.opt
 
     # Placeholder for model training
-    x = tf.placeholder(tf.float32, [args.batch_size, n_his + 1, n, 1], name='data_input')
+    x = tf.placeholder(tf.float32, [None, n_his + 1, n, 1], name='data_input')
+    # x = tf.placeholder(tf.float32, [args.batch_size, n_his + 1, n, 1], name='data_input')
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     # Define model loss

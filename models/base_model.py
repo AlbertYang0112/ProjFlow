@@ -27,8 +27,8 @@ def build_cls_model(inputs, n_his, Ks, Kt, blocks, keep_prob, cls):
         raise ValueError(f'ERROR: kernel size Ko must be greater than 1, but received "{Ko}".')
 
     gt = inputs[:, n_his:n_his + 1, :, :]
-    mean = tf.constant(0.0, shape=gt.shape)
-    label = tf.greater(gt, mean)
+    # mean = tf.constant(0.0, shape=gt.shape)
+    label = tf.greater(gt, 0)
     label = tf.reduce_sum(tf.to_int32(label), 3)
 
     train_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=label, logits=y)
