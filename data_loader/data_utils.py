@@ -125,7 +125,7 @@ def gen_batch(inputs, batch_size, dynamic_batch=False, shuffle=False, roll=False
         idx = np.arange(len_inputs)
         np.random.shuffle(idx)
 
-    for start_idx in range(0, len_inputs, 5 if roll else batch_size):
+    for start_idx in range(0, len_inputs, 1 if roll else batch_size):
         end_idx = start_idx + batch_size
         if end_idx > len_inputs:
             if dynamic_batch:
