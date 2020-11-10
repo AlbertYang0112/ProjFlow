@@ -45,7 +45,7 @@ parser.add_argument('--kt', type=int, default=3)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--opt', type=str, default='RMSProp')
 parser.add_argument('--inf_mode', type=str, default='sep')
-parser.add_argument('--cls', type=int, default=2)
+parser.add_argument('--cls', type=int, default=4)
 
 args = parser.parse_args()
 print(f'Training configs: {args}')

@@ -13,13 +13,17 @@ import pandas as pd
 
 
 class Dataset(object):
-    def __init__(self, data, stats):
+    def __init__(self, data, stats, label):
         self.__data = data
+        self.label = label
         self.mean = stats['mean']
         self.std = stats['std']
 
     def get_data(self, type):
         return self.__data[type]
+
+    def get_label(self, type):
+        return self.label[type]
 
     def get_stats(self):
         return {'mean': self.mean, 'std': self.std}
@@ -87,19 +91,23 @@ def data_gen(file_path, data_config, n_route, n_frame, interval):
         data_seq = pd.read_csv(file_path, header=None).values.transpose()
     except FileNotFoundError:
         print(f'ERROR: input file was not found in {file_path}.')
+        exit()
     day_slot = 24 * 60 // interval
     dataStartIdx = 6 * 60 // interval
     dataEndIdx = 18 * 60 // interval
     print(data_seq.shape, dataStartIdx, dataEndIdx)
     data_seq = data_seq[dataStartIdx:-dataEndIdx, :]
-
+    label, labelCenter = getLabel(data_seq)
 
     seq_train = m_seq_gen(n_train, data_seq, 0, n_frame, n_route, day_slot)
     seq_val = m_seq_gen(n_val, data_seq, n_train, n_frame, n_route, day_slot)
     seq_test = m_seq_gen(n_test, data_seq, n_train + n_val, n_frame, n_route, day_slot)
+    label_train = m_seq_gen(n_train, label, 0, n_frame, n_route, day_slot)
+    label_val = m_seq_gen(n_val, label, n_train, n_frame, n_route, day_slot)
+    label_test = m_seq_gen(n_test, label, n_train + n_val, n_frame, n_route, day_slot)
 
     # x_stats: dict, the stats for the train dataset, including the value of mean and standard deviation.
-    x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}
+    x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train), 'center': labelCenter}
 
     # x_train, x_val, x_test: np.array, [sample_size, n_frame, n_route, channel_size].
     x_train = z_score(seq_train, x_stats['mean'], x_stats['std'])
@@ -107,11 +115,30 @@ def data_gen(file_path, data_config, n_route, n_frame, interval):
     x_test = z_score(seq_test, x_stats['mean'], x_stats['std'])
 
     x_data = {'train': x_train, 'val': x_val, 'test': x_test}
-    dataset = Dataset(x_data, x_stats)
+    label = {'train': label_train, 'val': label_val, 'test': label_test}
+    dataset = Dataset(x_data, x_stats, label)
     return dataset
 
+def getLabel(data, classNum=4, binNum=100, cutoffSigma=3):
+    x = np.copy(data)
+    mean = np.average(x)
+    std = np.std(x)
+    x[x < mean - 3 * std] = mean - cutoffSigma * std
+    x[x > mean + 3 * std] = mean + cutoffSigma * std
+    n, bin = np.histogram(x, binNum)
+    dx = np.digitize(x, bin) - 1
+    lut = np.zeros(binNum + 1)
+    lut[1:] = np.cumsum(n)
+    lut = (lut / lut[-1] * classNum).astype(np.int)
+    lut[lut > (classNum-1)] = classNum - 1
+    label = lut[dx]
+    labelCenter = np.zeros(classNum)
+    for i in range(classNum):
+        labelCenter[i] = np.average(bin[lut == i])
+    return label, labelCenter
 
-def gen_batch(inputs, batch_size, dynamic_batch=False, shuffle=False, roll=False):
+
+def gen_batch(inputs, batch_size, label=None, dynamic_batch=False, shuffle=False, roll=False):
     '''
     Data iterator in batch.
     :param inputs: np.ndarray, [len_seq, n_frame, n_route, C_0], standard sequence units.
@@ -137,4 +164,7 @@ def gen_batch(inputs, batch_size, dynamic_batch=False, shuffle=False, roll=False
         else:
             slide = slice(start_idx, end_idx)
 
-        yield inputs[slide]
+        if label is not None:
+            yield inputs[slide], label[slide]
+        else:
+            yield inputs[slide]

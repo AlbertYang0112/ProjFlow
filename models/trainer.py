@@ -25,11 +25,12 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
 
     # Placeholder for model training
     x = tf.placeholder(tf.float32, [None, n_his + 1, n, 1], name='data_input')
+    x_label = tf.placeholder(tf.int32, [None, 1, n, 1], name='data_label')
     # x = tf.placeholder(tf.float32, [args.batch_size, n_his + 1, n, 1], name='data_input')
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     # Define model loss
-    train_loss, pred, label = build_cls_model(x, n_his, Ks, Kt, blocks, keep_prob, args.cls)
+    train_loss, pred, label = build_cls_model(x, x_label, n_his, Ks, Kt, blocks, keep_prob, args.cls)
     tf.summary.scalar('train_loss', train_loss)
 
     # Learning rate settings
@@ -62,16 +63,31 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
 
         for i in range(epoch):
             start_time = time.time()
-            for j, x_batch in enumerate(
-                    gen_batch(inputs.get_data('train'), batch_size, dynamic_batch=False, shuffle=True, roll=True)):
-                summary, _, prediction, gt = sess.run([merged, train_op, pred, label], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
+            for j, (x_batch, label_batch) in enumerate(
+                    gen_batch(
+                        inputs.get_data('train'), 
+                        batch_size, 
+                        label=inputs.get_label('train'),
+                        dynamic_batch=True, shuffle=True, roll=False
+                    )):
+                summary, _, prediction, gt = sess.run(
+                    [merged, train_op, pred, label], 
+                    feed_dict={
+                        x: x_batch[:, 0:n_his + 1, :, :], 
+                        keep_prob: 1.0,
+                        x_label: label_batch[:, n_his: n_his + 1, :, :]
+                    })
                 gt = gt[:, 0, :].reshape(-1)
                 prediction = prediction.reshape(-1)
                 writer.add_summary(summary, i * epoch_step + j)
                 if j % 50 == 0:
                     loss_value = \
                         sess.run(train_loss,
-                                 feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
+                                feed_dict={
+                                    x: x_batch[:, 0:n_his + 1, :, :], 
+                                    keep_prob: 1.0,
+                                    x_label: label_batch[:, n_his: n_his + 1, :, :]
+                                })
                     print(f'Epoch {i:2d}, Step {j:3d}: loss {loss_value:.3f}')
                     trainPrecision, trainRecall, trainF1, _ = precision_recall_fscore_support(gt, prediction, average='macro')
                     trainAcc = accuracy_score(gt, prediction)
