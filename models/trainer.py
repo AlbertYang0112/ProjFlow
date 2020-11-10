@@ -9,6 +9,7 @@ from data_loader.data_utils import gen_batch
 from models.tester import model_inference, model_inference_cls
 from models.base_model import build_model, build_cls_model, model_save
 from os.path import join as pjoin
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 import tensorflow as tf
 import numpy as np
@@ -28,7 +29,7 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     # Define model loss
-    train_loss, pred = build_cls_model(x, n_his, Ks, Kt, blocks, keep_prob, args.cls)
+    train_loss, pred, label = build_cls_model(x, n_his, Ks, Kt, blocks, keep_prob, args.cls)
     tf.summary.scalar('train_loss', train_loss)
 
     # Learning rate settings
@@ -63,13 +64,18 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
             start_time = time.time()
             for j, x_batch in enumerate(
                     gen_batch(inputs.get_data('train'), batch_size, dynamic_batch=True, shuffle=True)):
-                summary, _ = sess.run([merged, train_op], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
+                summary, _, prediction, gt = sess.run([merged, train_op, pred, label], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
+                gt = gt[:, 0, :].reshape(-1)
+                prediction = prediction.reshape(-1)
                 writer.add_summary(summary, i * epoch_step + j)
                 if j % 50 == 0:
                     loss_value = \
                         sess.run(train_loss,
                                  feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
                     print(f'Epoch {i:2d}, Step {j:3d}: loss {loss_value:.3f}')
+                    trainPrecision, trainRecall, trainF1, _ = precision_recall_fscore_support(gt, prediction, average='macro')
+                    trainAcc = accuracy_score(gt, prediction)
+                    print(f"Acc: {trainAcc:.3%} F1: {trainF1:.3%} Precision: {trainPrecision:.3%} Recall: {trainRecall:.3%}") 
             print(f'Epoch {i:2d} Training Time {time.time() - start_time:.3f}s')
 
             start_time = time.time()

@@ -7,7 +7,7 @@
 
 import numpy as np
 from numpy.lib.function_base import average
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import precision_recall_fscore_support
 
 
 def z_score(x, mean, std):
@@ -74,9 +74,8 @@ def class_evaluation(y, y_):
     tmp2 = gt - np.zeros((sh[0], sh[1]), dtype=int)
     acc = 1 - np.count_nonzero(tmp) / (sh[0] * sh[1])
     acc2 = 1 - np.count_nonzero(tmp2) / (sh[0] * sh[1])  # accuracy if prediction is all zero
-    precision = precision_score(gt, y_, average='macro')
-    recall = recall_score(gt, y_, average='macro')
-    return acc, acc2, F1(gt, y_), precision, recall
+    precision, recall, f1, _ = precision_recall_fscore_support(gt.reshape(-1), y_.reshape(-1), average='macro')
+    return acc, acc2, f1, precision, recall
 
 
 def evaluation(y, y_, x_stats):

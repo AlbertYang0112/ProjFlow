@@ -36,7 +36,7 @@ def build_cls_model(inputs, n_his, Ks, Kt, blocks, keep_prob, cls):
     single_pred = y[:, 0, :, :]
     single_pred = tf.math.argmax(single_pred, 2)
     tf.add_to_collection(name='y_pred', value=single_pred)
-    return train_loss, single_pred
+    return train_loss, single_pred, label
 
 
 def build_model(inputs, n_his, Ks, Kt, blocks, keep_prob):
