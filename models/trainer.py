@@ -63,7 +63,7 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
         for i in range(epoch):
             start_time = time.time()
             for j, x_batch in enumerate(
-                    gen_batch(inputs.get_data('train'), batch_size, dynamic_batch=True, shuffle=True)):
+                    gen_batch(inputs.get_data('train'), batch_size, dynamic_batch=False, shuffle=True, roll=True)):
                 summary, _, prediction, gt = sess.run([merged, train_op, pred, label], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
                 gt = gt[:, 0, :].reshape(-1)
                 prediction = prediction.reshape(-1)
