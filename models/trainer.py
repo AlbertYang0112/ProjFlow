@@ -40,7 +40,7 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
     else:
         epoch_step = int(len_train / batch_size) + 1
     # Learning rate decay with rate 0.7 every 5 epochs.
-    lr = tf.train.exponential_decay(args.lr, global_steps, decay_steps=5 * epoch_step, decay_rate=0.7, staircase=True)
+    lr = tf.train.exponential_decay(args.lr, global_steps, decay_steps=5 * epoch_step, decay_rate=0.85, staircase=True)
     tf.summary.scalar('learning_rate', lr)
     step_op = tf.assign_add(global_steps, 1)
     with tf.control_dependencies([step_op]):

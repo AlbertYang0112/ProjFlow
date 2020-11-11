@@ -70,7 +70,6 @@ def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx,
 
     y_val, len_val = class_pred(sess, pred, x_val, batch_size, n_his, n_pred, step_idx)
     val_acc, val_f1, val_prec, val_recall = class_evaluation(label_val[0:len_val, step_idx + n_his, :, :], y_val)
-    print(y_val.reshape(-1)[:10])
     # evl_val, evl_0, evl_f1, evl_precision, evl_recall = class_evaluation(label_val[0:len_val, step_idx + n_his, :, :], y_val)
 
     # compare with copy prediction
