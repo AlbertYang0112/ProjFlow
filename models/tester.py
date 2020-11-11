@@ -147,15 +147,18 @@ def model_test_cls(inputs, batch_size, n_his, n_pred, load_path='./output/models
         pred = test_graph.get_collection('y_pred')
 
         x_test, x_stats = inputs.get_data('test'), inputs.get_stats()
+        label_test = inputs.get_label('test')
 
         y_test, len_test = class_pred(test_sess, pred, x_test, batch_size, n_his, n_pred, 0)
-        evl, evl2 = class_evaluation(x_test[0:len_test, n_his, :, :], y_test)
+        val_acc, val_f1, val_prec, val_recall = class_evaluation(label_test[0:len_test, n_his, :, :], y_test)
 
         cp_val = x_test[0:len_test, n_his - 1, :, 0]
-        cp_val = (cp_val > 0).astype(int)
-        evl_copy, _ = class_evaluation(x_test[0:len_test, n_his, :, :], cp_val)
+        cp_y = np.digitize(cp_val, x_stats['bin']) - 1
+        cp_acc, cp_f1, cp_prec, cp_recall = class_evaluation(label_test[0:len_test, n_his, :, :], cp_y)
 
-        print(f'Test Accuracy {evl:7.3%}; Copy accuracy {evl_copy:7.3%}; All Zero accuracy {evl2:7.3%}')
+        print(f"Val Acc: {val_acc:.3%} F1 {val_f1:.3%} Precision: {val_prec:.3%} Recall: {val_recall:.3%}")
+        print(f"Copy Acc: {cp_acc:.3%} F1 {cp_f1:.3%} Precision: {cp_prec:.3%} Recall: {cp_recall:.3%}")
+
         print(f'Model Test Time {time.time() - start_time:.3f}s')
 
     print('Testing model finished!')
