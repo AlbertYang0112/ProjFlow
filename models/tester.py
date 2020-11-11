@@ -5,6 +5,7 @@
 # @IDE      : PyCharm
 # @Github   : https://github.com/VeritasYin/Project_Orion
 
+from numpy.lib.npyio import load
 from data_loader.data_utils import gen_batch
 from utils.math_utils import evaluation, class_evaluation
 from os.path import join as pjoin
@@ -211,3 +212,40 @@ def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path='./output/
             print(f'Time Step {ix + 1}: MAPE {te[0]:7.3%}; MAE  {te[1]:4.3f}; RMSE {te[2]:6.3f}.')
         print(f'Model Test Time {time.time() - start_time:.3f}s')
     print('Testing model finished!')
+
+def dataErrorMap(inputs, batch_size, n_his, n_pred, load_path='./output/models/'):
+    start_time = time.time()
+    model_path = tf.train.get_checkpoint_state(load_path).model_checkpoint_path
+
+    test_graph = tf.Graph()
+
+    with test_graph.as_default():
+        saver = tf.train.import_meta_graph(pjoin(f'{model_path}.meta'))
+
+    with tf.Session(graph=test_graph) as test_sess:
+        saver.restore(test_sess, tf.train.latest_checkpoint(load_path))
+        print(f'>> Loading saved model from {model_path} ...')
+
+        pred = test_graph.get_collection('y_pred')
+
+        x_train, x_stats = inputs.get_data('train'), inputs.get_stats()
+        label_train = inputs.get_label('train')
+        label_train = label_train[:, n_his, :, 0]
+
+        y_train, len_train = class_pred(test_sess, pred, x_train, batch_size, n_his, n_pred, 0)
+        print(y_train.shape)
+        print(label_train.shape)
+        train_diff = y_train - label_train
+
+        x_val = inputs.get_data('val')
+        label_val = inputs.get_label('val')
+        label_val = label_val[:, n_his, :, 0]
+        y_val, len_val = class_pred(test_sess, pred, x_val, batch_size, n_his, n_pred, 0)
+        val_diff = y_val - label_val
+
+        print(f'Error Map Generation Time {time.time() - start_time:.3f}s')
+        np.savetxt(pjoin(load_path, "trainError.csv"), train_diff.transpose(), delimiter=',')
+        np.savetxt(pjoin(load_path, "valError.csv"), val_diff.transpose(), delimiter=',')
+        np.savetxt(pjoin(load_path, "Bin.csv"), x_stats['bin'], delimiter=',')
+    print('Testing model finished!')
+
