@@ -85,7 +85,7 @@ if __name__ == '__main__':
         model_train(PeMS, blocks, args)
         model_test(PeMS, PeMS.get_len('test'), n_his, n_pred, args.inf_mode)
     else:
-        # model_train_cls(PeMS, blocks, args)
+        model_train_cls(PeMS, blocks, args)
         model_test_cls(PeMS, args.batch_size, n_his, n_pred)
         dataErrorMap(PeMS, args.batch_size, n_his, n_pred)
 
