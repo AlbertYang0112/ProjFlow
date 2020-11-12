@@ -76,7 +76,7 @@ Lk = cheb_poly_approx(L, Ks, n)
 tf.add_to_collection(name='graph_kernel', value=tf.cast(tf.constant(Lk), tf.float32))
 
 # Data Preprocessing
-n_train, n_val, n_test = 11, 5, 5
+n_train, n_val, n_test = 111, 5, 5
 PeMS = data_gen(args.feature, (n_train, n_val, n_test), n, n_his + n_pred, args.interval, args.cls)
 print(f'>> Loading dataset with Mean: {PeMS.mean:.2f}, STD: {PeMS.std:.2f}')
 
