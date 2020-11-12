@@ -53,6 +53,7 @@ def class_pred(sess, y_pred, seq, batch_size, n_his, n_pred, step_idx, dynamic_b
     for i in gen_batch(seq, min(batch_size, len(seq)), dynamic_batch=dynamic_batch):
         # Note: use np.copy() to avoid the modification of source data.
         test_seq = np.copy(i[:, 0:n_his + 1, :, :])
+
         pred = sess.run(y_pred,feed_dict={'data_input:0': test_seq, 'keep_prob:0': 1.0})
         if isinstance(pred, list):
             pred = np.array(pred[0])
@@ -73,7 +74,7 @@ def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx,
     # evl_val, evl_0, evl_f1, evl_precision, evl_recall = class_evaluation(label_val[0:len_val, step_idx + n_his, :, :], y_val)
 
     # compare with copy prediction
-    cp_val = x_val[0:len_val, step_idx + n_his - 1, :, 0] * x_stats['std']  + x_stats['mean']
+    cp_val = x_val[0:len_val, step_idx + n_his - 1, :, 0] * x_stats['std'] + x_stats['mean']
     cp_y = np.digitize(cp_val, x_stats['bin']) - 1
     cp_y[cp_y >= len(x_stats['bin']) - 1] = len(x_stats['bin']) - 2
     cp_acc, cp_f1, cp_prec, cp_recall = class_evaluation(label_val[0:len_val, step_idx + n_his, :, :], cp_y)
@@ -87,6 +88,16 @@ def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx,
         y_pred, len_pred = class_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
         test_acc, test_f1, test_prec, test_recall = class_evaluation(label_test[0:len_pred, step_idx + n_his, :, :], y_pred)
         max_val = test_acc
+
+        # compare with copy prediction
+        cp_test = x_test[0:len_pred, step_idx + n_his - 1, :, 0] * x_stats['std'] + x_stats['mean']
+        cp_y = np.digitize(cp_test, x_stats['bin']) - 1
+        cp_y[cp_y >= len(x_stats['bin']) - 1] = len(x_stats['bin']) - 2
+        cp_acc, cp_f1, cp_prec, cp_recall = class_evaluation(label_test[0:len_pred, step_idx + n_his, :, :], cp_y)
+
+        print(f"Test Acc: {test_acc:.3%} F1 {test_f1:.3%} Precision: {test_prec:.3%} Recall: {test_recall:.3%}")
+        print(f"Copy Acc: {cp_acc:.3%} F1 {cp_f1:.3%} Precision: {cp_prec:.3%} Recall: {cp_recall:.3%}")
+
     return max_va_val, max_val
 
 
@@ -158,7 +169,7 @@ def model_test_cls(inputs, batch_size, n_his, n_pred, load_path='./output/models
         cp_y[cp_y >= len(x_stats['bin']) - 1] = len(x_stats['bin']) - 2
         cp_acc, cp_f1, cp_prec, cp_recall = class_evaluation(label_test[0:len_test, n_his, :, :], cp_y)
 
-        print(f"Val Acc: {val_acc:.3%} F1 {val_f1:.3%} Precision: {val_prec:.3%} Recall: {val_recall:.3%}")
+        print(f"Test Acc: {val_acc:.3%} F1 {val_f1:.3%} Precision: {val_prec:.3%} Recall: {val_recall:.3%}")
         print(f"Copy Acc: {cp_acc:.3%} F1 {cp_f1:.3%} Precision: {cp_prec:.3%} Recall: {cp_recall:.3%}")
 
         print(f'Model Test Time {time.time() - start_time:.3f}s')

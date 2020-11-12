@@ -119,6 +119,7 @@ def data_gen(file_path, data_config, n_route, n_frame, interval, cls):
     dataset = Dataset(x_data, x_stats, label)
     return dataset
 
+
 def getLabel(data, classNum=4, binNum=100, cutoffSigma=3):
     x = np.copy(data)
     mean = np.average(x)

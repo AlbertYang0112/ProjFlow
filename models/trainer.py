@@ -59,7 +59,7 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
 
         step_idx = n_pred - 1
         max_val = max_va_val = 0
-
+        va, te = 0, 0
         for i in range(epoch):
             start_time = time.time()
             for j, (x_batch, label_batch) in enumerate(
@@ -87,15 +87,18 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
                                     keep_prob: 1.0,
                                     x_label: label_batch[:, n_his: n_his + 1, :, :]
                                 })
-                    print(f'Epoch {i:2d}, Step {j:3d}: loss {loss_value:.3f}')
                     trainPrecision, trainRecall, trainF1, _ = precision_recall_fscore_support(gt, prediction, average='macro')
                     trainAcc = accuracy_score(gt, prediction)
-                    print(f"Acc: {trainAcc:.3%} F1: {trainF1:.3%} Precision: {trainPrecision:.3%} Recall: {trainRecall:.3%}") 
+                    print(f'Epoch {i:2d}, Step {j:3d}: loss {loss_value:.3f}  Acc: {trainAcc:.3%} F1: {trainF1:.3%}')
+                    # print(f"Acc: {trainAcc:.3%} F1: {trainF1:.3%} Precision: {trainPrecision:.3%} Recall: {trainRecall:.3%}")
             print(f'Epoch {i:2d} Training Time {time.time() - start_time:.3f}s')
 
             start_time = time.time()
             max_va_val, max_val = \
                 model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, max_va_val, max_val)
+
+            if max_val > te:
+                model_save(sess, global_steps, 'STGCN')
 
             va, te = max_va_val, max_val
             print(f'Accuracy {va:7.3%}, {te:7.3%};')
