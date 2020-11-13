@@ -16,7 +16,8 @@ import numpy as np
 import time
 
 
-def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
+def model_train_cls(inputs, blocks, args, save_path):
+    sum_path = pjoin(save_path, 'tensorboard')
     n = inputs.get_feature_num('train')
     n_his, n_pred = args.n_his, args.n_pred
     Ks, Kt = args.ks, args.kt
@@ -60,6 +61,7 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
         step_idx = n_pred - 1
         max_val = max_va_val = 0
         va, te = 0, 0
+        maxTrainAcc = 0
         for i in range(epoch):
             start_time = time.time()
             for j, (x_batch, label_batch) in enumerate(
@@ -89,6 +91,7 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
                                 })
                     trainPrecision, trainRecall, trainF1, _ = precision_recall_fscore_support(gt, prediction, average='macro')
                     trainAcc = accuracy_score(gt, prediction)
+                    maxTrainAcc = max(maxTrainAcc, trainAcc)
                     print(f'Epoch {i:2d}, Step {j:3d}: loss {loss_value:.3f}  Acc: {trainAcc:.3%} F1: {trainF1:.3%}')
                     # print(f"Acc: {trainAcc:.3%} F1: {trainF1:.3%} Precision: {trainPrecision:.3%} Recall: {trainRecall:.3%}")
             print(f'Epoch {i:2d} Training Time {time.time() - start_time:.3f}s')
@@ -98,16 +101,17 @@ def model_train_cls(inputs, blocks, args, sum_path='./output/tensorboard'):
                 model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, max_va_val, max_val)
 
             if max_val > te:
-                model_save(sess, global_steps, 'STGCN')
+                model_save(sess, global_steps, 'STGCN', save_path)
 
             va, te = max_va_val, max_val
             print(f'Accuracy {va:7.3%}, {te:7.3%};')
             print(f'Epoch {i:2d} Inference Time {time.time() - start_time:.3f}s')
 
             if (i + 1) % args.save == 0:
-                model_save(sess, global_steps, 'STGCN')
+                model_save(sess, global_steps, 'STGCN', save_path)
         writer.close()
     print('Training model finished!')
+    return maxTrainAcc, max_va_val, max_val
 
 
 def model_train(inputs, blocks, args, sum_path='./output/tensorboard'):

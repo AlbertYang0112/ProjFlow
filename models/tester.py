@@ -173,6 +173,12 @@ def model_test_cls(inputs, batch_size, n_his, n_pred, load_path='./output/models
         print(f"Copy Acc: {cp_acc:.3%} F1 {cp_f1:.3%} Precision: {cp_prec:.3%} Recall: {cp_recall:.3%}")
 
         print(f'Model Test Time {time.time() - start_time:.3f}s')
+    
+    label_test = label_test[:, n_his, :, 0]
+
+    np.savetxt(pjoin(load_path, "testPred.csv"), y_test.transpose(), delimiter=',')
+    np.savetxt(pjoin(load_path, "testLabel.csv"), label_test.transpose(), delimiter=',')
+    np.savetxt(pjoin(load_path, "testInput.csv"), x_test[:, n_his, :, 0].transpose(), delimiter=',')
 
     print('Testing model finished!')
 
