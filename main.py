@@ -79,11 +79,11 @@ if __name__ == '__main__':
         model_train(PeMS, blocks, args)
         model_test(PeMS, PeMS.get_len('test'), n_his, n_pred, args.inf_mode)
     else:
-        trainAcc, valAcc, testAcc = model_train_cls(PeMS, blocks, args, outputPath)
+        trainAcc, valAcc, testAcc, cpAcc = model_train_cls(PeMS, blocks, args, outputPath)
         model_test_cls(PeMS, args.batch_size, n_his, n_pred, outputPath)
         dataErrorMap(PeMS, args.batch_size, n_his, n_pred, outputPath)
         with open(pjoin(outputPath, "log.txt"), "a") as f:
             if f.tell() == 0:
-                f.write(f"Time, Epoch, CLS, BatchSize, LR, Train Acc, Val Acc, Test Acc, Data Path\n")
-            f.write(f"{dt.datetime.today()}, {args.epoch}, {args.cls}, {args.batch_size}, {args.lr}, {trainAcc}, {valAcc}, {testAcc}, {args.feature}\n")
+                f.write(f"Time, Epoch, CLS, BatchSize, LR, Train Acc, Val Acc, Test Acc, Copy Acc, Data Path\n")
+            f.write(f"{dt.datetime.today()}, {args.epoch}, {args.cls}, {args.batch_size}, {args.lr}, {trainAcc}, {valAcc}, {testAcc}, {cpAcc}, {args.feature}\n")
 

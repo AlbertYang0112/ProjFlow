@@ -97,7 +97,7 @@ def model_train_cls(inputs, blocks, args, save_path):
             print(f'Epoch {i:2d} Training Time {time.time() - start_time:.3f}s')
 
             start_time = time.time()
-            max_va_val, max_val = \
+            max_va_val, max_val, cp_val = \
                 model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, max_va_val, max_val)
 
             if max_val > te:
@@ -111,7 +111,7 @@ def model_train_cls(inputs, blocks, args, save_path):
                 model_save(sess, global_steps, 'STGCN', save_path)
         writer.close()
     print('Training model finished!')
-    return maxTrainAcc, max_va_val, max_val
+    return maxTrainAcc, max_va_val, max_val, cp_val
 
 
 def model_train(inputs, blocks, args, sum_path='./output/tensorboard'):
