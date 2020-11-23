@@ -12,6 +12,7 @@ import tensorflow as tf
 
 def build_cls_model(inputs, label, n_his, Ks, Kt, blocks, keep_prob, cls):
     x = inputs[:, 0:n_his, :, :]
+    # inNHis = input.shape[1]
 
     # Ko>0: kernel size of temporal convolution in the output layer.
     Ko = n_his
@@ -25,11 +26,13 @@ def build_cls_model(inputs, label, n_his, Ks, Kt, blocks, keep_prob, cls):
         y = output_layer(x, Ko, 'output_layer', cls)
     else:
         raise ValueError(f'ERROR: kernel size Ko must be greater than 1, but received "{Ko}".')
+    print(f"Label: {label.shape} Y: {y.shape}")
 
     # gt = inputs[:, n_his:n_his + 1, :, :]
     # # mean = tf.constant(0.0, shape=gt.shape)
     # label = tf.greater(gt, 0)
-    # print(f"Label: {label.shape} Y: {y.shape}")
+    # label = label[:, :n_his, :, :]
+    # y = y[:, :n_his, :, :]
     label = tf.reduce_sum(tf.to_int32(label), 3)
 
     train_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=label, logits=y)

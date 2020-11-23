@@ -21,8 +21,6 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 tf.Session(config=config)
-tf.set_random_seed(42)
-np.random.seed(42)
 
 from utils.math_graph import *
 from data_loader.data_utils import *
@@ -48,9 +46,13 @@ parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--opt', type=str, default='RMSProp')
 parser.add_argument('--inf_mode', type=str, default='sep')
 parser.add_argument('--cls', type=int, default=4)
+parser.add_argument('--seed', type=int, default=42)
 
 args = parser.parse_args()
 print(f'Training configs: {args}')
+
+tf.set_random_seed(args.seed)
+np.random.seed(args.seed)
 
 # n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
 Ks, Kt = args.ks, args.kt
@@ -59,8 +61,10 @@ blocks = [[1, 32, 64], [64, 32, 128]]
 outputPath = f"./output/{args.cls}/models/"
 
 # Load wighted adjacency matrix W
-W = weight_matrix(args.graph)
+W = weight_matrix(args.graph, scaling=False)
+np.savetxt("rescaledW.csv", W, delimiter=',')
 n = W.shape[0]
+print(f"{n} Nodes in graph")
 n_his, n_pred = args.n_his, args.n_pred
 
 # Calculate graph kernel
@@ -70,8 +74,10 @@ Lk = cheb_poly_approx(L, Ks, n)
 tf.add_to_collection(name='graph_kernel', value=tf.cast(tf.constant(Lk), tf.float32))
 
 # Data Preprocessing
-n_train, n_val, n_test = 11, 5, 5
+n_train, n_val, n_test = 101, 10, 10
 PeMS = data_gen(args.feature, (n_train, n_val, n_test), n, n_his + n_pred, args.interval, args.cls)
+n_his = max(10, n_his)
+args.n_his = n_his
 print(f'>> Loading dataset with Mean: {PeMS.mean:.2f}, STD: {PeMS.std:.2f}')
 
 if __name__ == '__main__':

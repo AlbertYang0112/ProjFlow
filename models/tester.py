@@ -79,8 +79,9 @@ def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx,
     cp_y[cp_y >= len(x_stats['bin']) - 1] = len(x_stats['bin']) - 2
     cp_acc, cp_f1, cp_prec, cp_recall = class_evaluation(label_val[0:len_val, step_idx + n_his, :, :], cp_y)
 
-    print(f"Val Acc: {val_acc:.3%} F1 {val_f1:.3%} Precision: {val_prec:.3%} Recall: {val_recall:.3%}")
-    print(f"Copy Acc: {cp_acc:.3%} F1 {cp_f1:.3%} Precision: {cp_prec:.3%} Recall: {cp_recall:.3%}")
+    # print(f"Val Acc: {val_acc:.3%} F1 {val_f1:.3%} Precision: {val_prec:.3%} Recall: {val_recall:.3%}")
+    # print(f"Copy Acc: {cp_acc:.3%} F1 {cp_f1:.3%} Precision: {cp_prec:.3%} Recall: {cp_recall:.3%}")
+    print(f"Val/Copy Acc: {val_acc:.3%}/{cp_acc:.3%} F1 {val_f1:.3%}/{copy_f1:.3%}")
 
     chks = val_acc > max_va_val
     if chks:
@@ -95,10 +96,11 @@ def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx,
         cp_y[cp_y >= len(x_stats['bin']) - 1] = len(x_stats['bin']) - 2
         cp_acc, cp_f1, cp_prec, cp_recall = class_evaluation(label_test[0:len_pred, step_idx + n_his, :, :], cp_y)
 
-        print(f"Test Acc: {test_acc:.3%} F1 {test_f1:.3%} Precision: {test_prec:.3%} Recall: {test_recall:.3%}")
-        print(f"Copy Acc: {cp_acc:.3%} F1 {cp_f1:.3%} Precision: {cp_prec:.3%} Recall: {cp_recall:.3%}")
+        # print(f"Test Acc: {test_acc:.3%} F1 {test_f1:.3%} Precision: {test_prec:.3%} Recall: {test_recall:.3%}")
+        # print(f"Copy Acc: {cp_acc:.3%} F1 {cp_f1:.3%} Precision: {cp_prec:.3%} Recall: {cp_recall:.3%}")
+        print(f"Test/Copy Acc: {test_acc:.3%}/{cp_acc:.3%} F1 {test_f1:.3%}/{cp_f1:.3%}")
 
-    return max_va_val, max_val, cp_val
+    return max_va_val, max_val, cp_acc
 
 
 def model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val):

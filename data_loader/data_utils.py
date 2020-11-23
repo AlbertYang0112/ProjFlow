@@ -39,6 +39,17 @@ class Dataset(object):
     def z_inverse(self, type):
         return self.__data[type] * self.std + self.mean
 
+def pad_along_axis(array: np.ndarray, target_length: int, axis: int = 0):
+
+    pad_size = target_length - array.shape[axis]
+
+    if pad_size <= 0:
+        return array
+
+    npad = [(0, 0)] * array.ndim
+    npad[axis] = (pad_size, 0)
+
+    return np.pad(array, pad_width=npad, mode='edge')
 
 def m_seq_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
     n_slot = day_slot * len_seq - n_frame + 1
@@ -48,6 +59,9 @@ def m_seq_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
         end = sta + n_frame
         # print(data_seq.shape, i, sta, end)
         tmp_seq[i, :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame, n_route, C_0])
+    print(f"NF: {n_frame} Before: {tmp_seq.shape}")
+    tmp_seq = pad_along_axis(tmp_seq, 11, 1)
+    print(f"After: {tmp_seq.shape}")
     return tmp_seq
 
 
@@ -105,6 +119,8 @@ def data_gen(file_path, data_config, n_route, n_frame, interval, cls):
     label_train = m_seq_gen(n_train, label, 0, n_frame, n_route, day_slot)
     label_val = m_seq_gen(n_val, label, n_train, n_frame, n_route, day_slot)
     label_test = m_seq_gen(n_test, label, n_train + n_val, n_frame, n_route, day_slot)
+    print(seq_train[0, :, 0, 0])
+    print(np.unique(label_train))
 
     # x_stats: dict, the stats for the train dataset, including the value of mean and standard deviation.
     x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train), 'center': labelCenter, 'bin': dBin}
@@ -120,7 +136,7 @@ def data_gen(file_path, data_config, n_route, n_frame, interval, cls):
     return dataset
 
 
-def getLabel(data, classNum=4, binNum=100, cutoffSigma=3):
+def getLabel(data, classNum=4, binNum=256, cutoffSigma=3):
     x = np.copy(data)
     mean = np.average(x)
     std = np.std(x)
