@@ -81,7 +81,7 @@ def model_inference_cls(sess, pred, inputs, batch_size, n_his, n_pred, step_idx,
 
     # print(f"Val Acc: {val_acc:.3%} F1 {val_f1:.3%} Precision: {val_prec:.3%} Recall: {val_recall:.3%}")
     # print(f"Copy Acc: {cp_acc:.3%} F1 {cp_f1:.3%} Precision: {cp_prec:.3%} Recall: {cp_recall:.3%}")
-    print(f"Val/Copy Acc: {val_acc:.3%}/{cp_acc:.3%} F1 {val_f1:.3%}/{copy_f1:.3%}")
+    print(f"Val/Copy Acc: {val_acc:.3%}/{cp_acc:.3%} F1 {val_f1:.3%}/{cp_f1:.3%}")
 
     chks = val_acc > max_va_val
     if chks:
