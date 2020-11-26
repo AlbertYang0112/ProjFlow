@@ -71,7 +71,9 @@ n_his, n_pred = args.n_his, args.n_pred
 L = scaled_laplacian(W)
 # Alternative approximation method: 1st approx - first_approx(W, n).
 Lk = cheb_poly_approx(L, Ks, n)
+L1 = first_approx(W, n)
 tf.add_to_collection(name='graph_kernel', value=tf.cast(tf.constant(Lk), tf.float32))
+tf.add_to_collection(name='graph_kernel_first_approx', value=tf.cast(tf.constant(L1), tf.float32))
 
 # Data Preprocessing
 n_train, n_val, n_test = 101, 10, 10

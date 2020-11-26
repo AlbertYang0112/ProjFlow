@@ -59,9 +59,7 @@ def m_seq_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
         end = sta + n_frame
         # print(data_seq.shape, i, sta, end)
         tmp_seq[i, :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame, n_route, C_0])
-    print(f"NF: {n_frame} Before: {tmp_seq.shape}")
     tmp_seq = pad_along_axis(tmp_seq, 11, 1)
-    print(f"After: {tmp_seq.shape}")
     return tmp_seq
 
 

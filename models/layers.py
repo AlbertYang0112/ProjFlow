@@ -6,6 +6,7 @@
 # @Github   : https://github.com/VeritasYin/Project_Orion
 
 import tensorflow as tf
+import pdb
 
 
 def gconv(x, theta, Ks, c_in, c_out):
@@ -25,6 +26,63 @@ def gconv(x, theta, Ks, c_in, c_out):
     x_tmp = tf.reshape(tf.transpose(x, [0, 2, 1]), [-1, n])
     # x_mul = x_tmp * ker -> [batch_size*c_in, Ks*n_route] -> [batch_size, c_in, Ks, n_route]
     x_mul = tf.reshape(tf.matmul(x_tmp, kernel), [-1, c_in, Ks, n])
+    # x_ker -> [batch_size, n_route, c_in, K_s] -> [batch_size*n_route, c_in*Ks]
+    x_ker = tf.reshape(tf.transpose(x_mul, [0, 3, 1, 2]), [-1, c_in * Ks])
+    # x_gconv -> [batch_size*n_route, c_out] -> [batch_size, n_route, c_out]
+    x_gconv = tf.reshape(tf.matmul(x_ker, theta), [-1, n, c_out])
+    return x_gconv
+
+def attGConv(x, theta, Ks, c_in, c_out):
+    '''
+    Spectral-based graph convolution function.
+    :param x: tensor, [batch_size, n_route, c_in].
+    :param theta: tensor, [Ks*c_in, c_out], trainable kernel parameters.
+    :param Ks: int, kernel size of graph convolution.
+    :param c_in: int, size of input channel.
+    :param c_out: int, size of output channel.
+    :return: tensor, [batch_size, n_route, c_out].
+    '''
+    # graph kernel: tensor, [n_route, Ks*n_route]
+    kernel = tf.get_collection('graph_kernel')[0]
+    kernel1 = tf.get_collection('graph_kernel_first_approx')[0]
+    n = tf.shape(kernel)[0]
+    keyDim = 4 * c_in
+    valueDim = 2 * c_in
+    nHead = 12
+
+    # Get Query, Key and Value
+    wKey = tf.get_variable('wKey', shape=[nHead, keyDim, c_in], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+    wQuery = tf.get_variable('wQuery', shape=[nHead, keyDim, c_in], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+    wValue = tf.get_variable('wValue', shape=[nHead, valueDim, c_in], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+    wMerge = tf.get_variable('wMerge', shape=[c_in, nHead * valueDim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+    tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wKey))
+    tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wQuery))
+    tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wValue))
+    tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wMerge))
+    bKey = tf.get_variable('bKey', shape=[1, nHead, 1, keyDim], dtype=tf.float32)
+    bQuery = tf.get_variable('bQuery', shape=[1, nHead, 1, keyDim], dtype=tf.float32)
+    bValue = tf.get_variable('bValue', shape=[1, nHead, 1, valueDim], dtype=tf.float32)
+    bMerge = tf.get_variable('bMerge', shape=[1, 1, c_in], dtype=tf.float32)
+    variable_summaries(wKey, 'w-Key')
+    variable_summaries(wQuery, 'w-Query')
+    variable_summaries(wValue, 'w-Value')
+    variable_summaries(wMerge, 'w-Merge')
+    query = tf.einsum("hki,bni->bhnk", wQuery, x) + bQuery
+    key = tf.einsum("hki,bni->bhnk", wKey, x) + bKey
+    value = tf.einsum("hvi,bni->bhnv", wValue, x) + bValue
+    corrScore = tf.einsum("bhik,bhjk->bhij", query, key)
+    scaledCorrScore = corrScore * tf.broadcast_to(kernel1, (1, 1, n, n))
+    normedCorrScore = tf.nn.softmax(scaledCorrScore / tf.sqrt(keyDim * 1.0))
+    attedValue = tf.einsum("bhni,bhiv->bhvn", normedCorrScore, value)
+    flatAttedValue = tf.reshape(attedValue, (-1, nHead * valueDim, n))
+    attedX = tf.einsum("cd,bdn->bnc", wMerge, flatAttedValue) + bMerge
+    attedXShortCut = tf.nn.softmax((attedX + x) / 2.0)
+    # x -> [batch_size, c_in, n_route] -> [batch_size*c_in, n_route]
+    x_tmp = tf.reshape(tf.transpose(attedXShortCut, [0, 2, 1]), [-1, n])
+
+    # x_mul = x_tmp * ker -> [batch_size*c_in, Ks*n_route] -> [batch_size, c_in, Ks, n_route]
+    x_mul = tf.reshape(tf.matmul(x_tmp, kernel), [-1, c_in, Ks, n])
+
     # x_ker -> [batch_size, n_route, c_in, K_s] -> [batch_size*n_route, c_in*Ks]
     x_ker = tf.reshape(tf.transpose(x_mul, [0, 3, 1, 2]), [-1, c_in * Ks])
     # x_gconv -> [batch_size*n_route, c_out] -> [batch_size, n_route, c_out]
@@ -88,6 +146,8 @@ def temporal_conv_layer(x, Kt, c_in, c_out, act_func='relu'):
         x_conv_1 = tf.nn.conv2d(x, wt, strides=[1, 1, 1, 1], padding='VALID') + bt
         x_conv_1 = tf.nn.sigmoid(x_conv_1)
         x_conv = tf.nn.conv2d(x_conv_1, wt2, strides=[1, 1, 1, 1], padding='SAME') + bt2
+        variable_summaries(wt, 'wTemp-GLU-L1')
+        variable_summaries(wt2, 'wTemp-GLU-L2')
         # x_conv = tf.nn.conv2d(x, wt, strides=[1, 1, 1, 1], padding='VALID') + bt
         return (x_conv[:, :, :, 0:c_out] + x_input) * tf.nn.sigmoid(x_conv[:, :, :, -c_out:])
     else:
@@ -99,6 +159,8 @@ def temporal_conv_layer(x, Kt, c_in, c_out, act_func='relu'):
         tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wt))
         bt2 = tf.get_variable(name='bt2', initializer=tf.zeros([c_out]), dtype=tf.float32)
         x_conv = tf.nn.conv2d(x_conv_1, wt2, strides=[1, 1, 1, 1], padding='SAME') + bt2
+        variable_summaries(wt, 'wTemp-L1')
+        variable_summaries(wt2, 'wTemp-L2')
         if act_func == 'linear':
             return x_conv
         elif act_func == 'sigmoid':
@@ -109,7 +171,7 @@ def temporal_conv_layer(x, Kt, c_in, c_out, act_func='relu'):
             raise ValueError(f'ERROR: activation function "{act_func}" is not defined.')
 
 
-def spatio_conv_layer(x, Ks, c_in, c_out):
+def spatio_conv_layer(x, Ks, c_in, c_out, useAtt=True):
     '''
     Spatial graph convolution layer.
     :param x: tensor, [batch_size, time_step, n_route, c_in].
@@ -133,12 +195,16 @@ def spatio_conv_layer(x, Ks, c_in, c_out):
     else:
         x_input = x
 
-    ws = tf.get_variable(name='ws', shape=[Ks * c_in, c_out], dtype=tf.float32)
+    ws = tf.get_variable(name='ws', shape=[Ks * c_in, c_out], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+    # ws = tf.get_variable(name='ws', dtype=tf.float32, initializer=tf.ones([Ks * c_in, c_out]))
     tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(ws))
     variable_summaries(ws, 'theta')
     bs = tf.get_variable(name='bs', initializer=tf.zeros([c_out]), dtype=tf.float32)
     # x -> [batch_size*time_step, n_route, c_in] -> [batch_size*time_step, n_route, c_out]
-    x_gconv = gconv(tf.reshape(x, [-1, n, c_in]), ws, Ks, c_in, c_out) + bs
+    if useAtt:
+        x_gconv = attGConv(tf.reshape(x, [-1, n, c_in]), ws, Ks, c_in, c_out) + bs
+    else:
+        x_gconv = gconv(tf.reshape(x, [-1, n, c_in]), ws, Ks, c_in, c_out) + bs
     # x_g -> [batch_size, time_step, n_route, c_out]
     x_gc = tf.reshape(x_gconv, [-1, T, n, c_out])
     return tf.nn.relu(x_gc[:, :, :, 0:c_out] + x_input)
@@ -164,7 +230,12 @@ def st_conv_block(x, Ks, Kt, channels, scope, keep_prob, act_func='GLU'):
         x_t = spatio_conv_layer(x_s, Ks, c_t, c_t)
     with tf.variable_scope(f'stn_block_{scope}_out'):
         x_o = temporal_conv_layer(x_t, Kt, c_t, c_oo)
-    x_ln = layer_norm(x_o, f'layer_norm_{scope}')
+        # Shortcut
+        x_t_pooled = tf.nn.pool(x_t, (3, 1), "MAX", padding="VALID")
+        wSkip = tf.get_variable('wSkip', shape=[1, 1, c_t, c_oo], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+        x_skip = tf.matmul(x_t_pooled, wSkip)
+        x_o_skip = x_o + x_skip
+    x_ln = layer_norm(x_o_skip, f'layer_norm_{scope}')
     return tf.nn.dropout(x_ln, keep_prob)
 
 

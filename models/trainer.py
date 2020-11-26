@@ -93,7 +93,6 @@ def model_train_cls(inputs, blocks, args, save_path):
                     trainAcc = accuracy_score(gt, prediction)
                     maxTrainAcc = max(maxTrainAcc, trainAcc)
                     print(f'Epoch {i:2d}, Step {j:3d}: loss {loss_value:.3f}  Acc: {trainAcc:.3%} F1: {trainF1:.3%}')
-                    # print(f"Acc: {trainAcc:.3%} F1: {trainF1:.3%} Precision: {trainPrecision:.3%} Recall: {trainRecall:.3%}")
             print(f'Epoch {i:2d} Training Time {time.time() - start_time:.3f}s')
 
             start_time = time.time()
