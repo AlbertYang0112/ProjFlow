@@ -45,10 +45,12 @@ def attGConv(x, theta, Ks, c_in, c_out):
     # graph kernel: tensor, [n_route, Ks*n_route]
     kernel = tf.get_collection('graph_kernel')[0]
     kernel1 = tf.get_collection('graph_kernel_first_approx')[0]
+    kernel1Sq = tf.sqrt(tf.matmul(kernel1, kernel1))
+    kernel1Mix = (kernel1 + kernel1Sq) / 2
     n = tf.shape(kernel)[0]
-    keyDim = 4 * c_in
+    keyDim = 2 * c_in
     valueDim = 2 * c_in
-    nHead = 12
+    nHead = 2
 
     # Get Query, Key and Value
     wKey = tf.get_variable('wKey', shape=[nHead, keyDim, c_in], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
@@ -71,7 +73,7 @@ def attGConv(x, theta, Ks, c_in, c_out):
     key = tf.einsum("hki,bni->bhnk", wKey, x) + bKey
     value = tf.einsum("hvi,bni->bhnv", wValue, x) + bValue
     corrScore = tf.einsum("bhik,bhjk->bhij", query, key)
-    scaledCorrScore = corrScore * tf.broadcast_to(kernel1, (1, 1, n, n))
+    scaledCorrScore = corrScore * tf.broadcast_to(kernel1Mix, (1, 1, n, n))
     normedCorrScore = tf.nn.softmax(scaledCorrScore / tf.sqrt(keyDim * 1.0))
     attedValue = tf.einsum("bhni,bhiv->bhvn", normedCorrScore, value)
     flatAttedValue = tf.reshape(attedValue, (-1, nHead * valueDim, n))
@@ -171,7 +173,7 @@ def temporal_conv_layer(x, Kt, c_in, c_out, act_func='relu'):
             raise ValueError(f'ERROR: activation function "{act_func}" is not defined.')
 
 
-def spatio_conv_layer(x, Ks, c_in, c_out, useAtt=True):
+def spatio_conv_layer(x, Ks, c_in, c_out, useAtt=False):
     '''
     Spatial graph convolution layer.
     :param x: tensor, [batch_size, time_step, n_route, c_in].

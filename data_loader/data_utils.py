@@ -106,9 +106,10 @@ def data_gen(file_path, data_config, n_route, n_frame, interval, cls):
         print(f'ERROR: input file was not found in {file_path}.')
         exit()
     day_slot = 24 * 60 // interval
-    dataStartIdx = 6 * 60 // interval
-    dataEndIdx = 18 * 60 // interval
+    dataStartIdx = (6 + 0 * 24) * 60 // interval
+    dataEndIdx = (18 + 0 * 24) * 60 // interval
     data_seq = data_seq[dataStartIdx:-dataEndIdx, :]
+    # data_seq = np.concatenate((data_seq[:(101 - 16) * 24 * 60, :], data_seq[:101 * 24 * 60, :]), axis=0) * 20
     label, labelCenter, dBin = getLabel(data_seq, classNum=cls)
 
     seq_train = m_seq_gen(n_train, data_seq, 0, n_frame, n_route, day_slot)
@@ -134,7 +135,7 @@ def data_gen(file_path, data_config, n_route, n_frame, interval, cls):
     return dataset
 
 
-def getLabel(data, classNum=4, binNum=256, cutoffSigma=3):
+def getLabel(data, classNum=4, binNum=512, cutoffSigma=3):
     x = np.copy(data)
     mean = np.average(x)
     std = np.std(x)
@@ -148,14 +149,31 @@ def getLabel(data, classNum=4, binNum=256, cutoffSigma=3):
     lut[lut > (classNum-1)] = classNum - 1
     label = lut[dx]
     labelCenter = np.zeros(classNum)
+    labelCount = np.bincount(label.reshape(-1))
+    # labelDist = labelCount / np.sum(labelCount)
+    labelDist = labelCount
+    print(f"Label Distribution: {labelDist}")
     dBin = np.zeros(classNum + 1)
     dBin[0] = bin[0]
-    dBin[1:] = [bin[lut == i][-1] for i in range(classNum)]
-    labelCenter = [np.average(bin[lut == i]) for i in range(classNum)]
+    for i in range(classNum):
+        if labelCount[i] == 0:
+            startIdx = 0
+            endIdx = classNum - 1
+            for j in range(i):
+                if labelCount[j] != 0:
+                    startIdx = max(j, startIdx)
+            for j in range(i, classNum):
+                if labelCount[j] != 0:
+                    endIdx = min(endIdx, j)
+            binStart = bin[lut == startIdx][-1]
+            binEnd = bin[lut == endIdx][-1]
+            dBin[i + 1] = binStart + (binEnd - binStart) * (i - startIdx) / (endIdx - startIdx)
+            print(f"{i}: {startIdx}, {endIdx}")
+        else:
+            dBin[i + 1] = bin[lut == i][-1]
+    labelCenter = (dBin[1:] - dBin[:-1]) / 2
     print(f"Label Center: {labelCenter}")
-    labelCount = np.bincount(label.reshape(-1))
-    labelDist = labelCount / np.sum(labelCount)
-    print(f"Label Distribution: {labelDist}")
+    print(f"Bin: {dBin}")
     return label, labelCenter, dBin
 
 

@@ -8,6 +8,7 @@
 import numpy as np
 import pandas as pd
 from scipy.sparse.linalg import eigs
+import pdb
 
 
 def scaled_laplacian(W):
@@ -28,6 +29,15 @@ def scaled_laplacian(W):
     # lambda_max \approx 2.0, the largest eigenvalues of L.
     lambda_max = eigs(L, k=1, which='LR')[0][0].real
     return np.mat(2 * L / lambda_max - np.identity(n))
+
+def self_looped_scaled_laplacian(W):
+    n = W.shape[0]
+    a = W + np.identity(n)
+    d = np.sum(a, axis=1)
+    invSqrtD = 1 / (np.diag(np.sqrt(d) + 0.0001))
+    normA = np.dot(invSqrtD, np.dot(a, invSqrtD))
+    print(normA.shape)
+    return normA
 
 
 def cheb_poly_approx(L, Ks, n):
@@ -94,4 +104,5 @@ def weight_matrix(file_path, sigma2=0.1, epsilon=0.5, scaling=True):
         # refer to Eq.10
         return np.exp(-W2 / sigma2) * (np.exp(-W2 / sigma2) >= epsilon) * W_mask
     else:
+        # W[W < 1e-3] = 0
         return W

@@ -69,9 +69,11 @@ n_his, n_pred = args.n_his, args.n_pred
 
 # Calculate graph kernel
 L = scaled_laplacian(W)
+# L = self_looped_scaled_laplacian(W)
 # Alternative approximation method: 1st approx - first_approx(W, n).
 Lk = cheb_poly_approx(L, Ks, n)
 L1 = first_approx(W, n)
+np.savetxt("lk.csv", Lk, delimiter=',')
 tf.add_to_collection(name='graph_kernel', value=tf.cast(tf.constant(Lk), tf.float32))
 tf.add_to_collection(name='graph_kernel_first_approx', value=tf.cast(tf.constant(L1), tf.float32))
 

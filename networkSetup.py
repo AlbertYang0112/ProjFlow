@@ -36,7 +36,7 @@ parser.add_argument('--edgeTh', type=int, metavar="nodeTh", help="Edge Filtering
 parser.add_argument('--sigma', type=float, metavar="Sigma", help="Edge Weight Scaling Factor", default=1)
 parser.add_argument('--pingTh', type=int, metavar="pingTh", help="Edge Filtering Threshold", default=10)
 parser.add_argument('--userTh', type=int, metavar="userTh", help="User Filtering Threshold", default=2)
-parser.add_argument('--avgNodeUserTh', type=int, metavar="userTh", help="User Filtering Threshold", default=2)
+parser.add_argument('--avgNodeUserTh', type=int, metavar="userTh", help="User Filtering Threshold", default=0)
 parser.add_argument('--nxFileDir', type=str, metavar="nxFileDir", help="Path to dump the networkx file.", default='')
 parser.add_argument('--adjFig', type=str, metavar="adjFig", help="Path to save the figure of adjacency matrix.", default='')
 parser.add_argument("--mapLbX", type=float, default=30.18)
@@ -167,12 +167,12 @@ if __name__ == '__main__':
     for fileIdx in tqdm(range(len(csvFiles))):
         p, f = csvFiles[fileIdx]
         filePath1 = os.path.join(p, f)
-        rawData1 = pd.read_csv(filePath1)
+        rawData1 = pd.read_csv(filePath1, nrows=200)
         rawData2 = None
         if fileIdx + 1 < len(csvFiles):
             p2, f2 = csvFiles[fileIdx + 1]
             filePath2 = os.path.join(p2, f2)
-            rawData2 = pd.read_csv(filePath2)
+            rawData2 = pd.read_csv(filePath2, nrows=200)
         dataIdx = dataSplit(rawData1, rawData2, interval, windowSize)
         for idxDay1, idxDay2, t in dataIdx:
             dataSlice = rawData1.loc[idxDay1]

@@ -19,10 +19,11 @@ def build_cls_model(inputs, label, n_his, Ks, Kt, blocks, keep_prob, cls):
     # ST-Block
     for i, channels in enumerate(blocks):
         x = st_conv_block(x, Ks, Kt, channels, i, keep_prob, act_func='GLU')
-        Ko -= 2 * (Ks - 1)
+        Ko -= 2 * (Kt - 1)
 
     # Output Layer
     if Ko > 1:
+        print("KO:", Ko)
         y = output_layer(x, Ko, 'output_layer', cls)
     else:
         raise ValueError(f'ERROR: kernel size Ko must be greater than 1, but received "{Ko}".')
