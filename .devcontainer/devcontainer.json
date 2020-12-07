@@ -1,0 +1,40 @@
+{
+    "name": "ProjFlow",
+    "image": "nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "opts": ["--network=host"],
+        "context": "..",
+        "network": "host"
+    },
+
+    // Set *default* container specific settings.json values on container create.
+    "settings": { 
+        "terminal.integrated.shell.linux": "/bin/bash",
+        "python.pythonPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.formatting.autopep8Path": "/usr/local/py-utils/bin/autopep8",
+        "python.formatting.blackPath": "/usr/local/py-utils/bin/black",
+        "python.formatting.yapfPath": "/usr/local/py-utils/bin/yapf",
+        "python.linting.banditPath": "/usr/local/py-utils/bin/bandit",
+        "python.linting.flake8Path": "/usr/local/py-utils/bin/flake8",
+        "python.linting.mypyPath": "/usr/local/py-utils/bin/mypy",
+        "python.linting.pycodestylePath": "/usr/local/py-utils/bin/pycodestyle",
+        "python.linting.pydocstylePath": "/usr/local/py-utils/bin/pydocstyle",
+        "python.linting.pylintPath": "/usr/local/py-utils/bin/pylint",
+        "http.proxy": "http://127.0.0.1:12333" 
+    },
+
+    // Add the IDs of extensions you want installed when the container is created.
+    "extensions": [
+        "ms-python.python"
+    ],
+    "runArgs": ["--runtime=nvidia"],
+    "containerUser":  "flow",
+    "mounts": [
+        // Change this line to where you put your dataset
+        "source=/ds/GPS-Data,target=/workspace/GPS-Data,type=bind,consistency=cached"
+    ]
+
+}
