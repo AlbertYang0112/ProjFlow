@@ -112,10 +112,17 @@ We provide an interactive example to visualize the output in `demo.ipynb`.
 
 ## Environment & Dependencies
 
-We provide the `Dockerfile` and `devcontainer.json` to help you construct the environment automatically with docker and vscode.
+We provide the `Dockerfile` and `devcontainer.json` in `.devcontainer/` to help you construct the environment automatically with docker and vscode.
+To support this feature, you need to install docker with nvidia support, and vscode remote plugin. But you can also construct the environment by yourself.
 
+Dependencies:
 - Python 3.6
-- numpy
+- numpy & scipy & pandas
 - pyproj
-- pandas
 - tqdm
+- h5py
+- networkx
+- tensorflow & tensorboard
+- sklearn
+- jupyter & notebook
+- opencv-python

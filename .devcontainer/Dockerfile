@@ -13,4 +13,4 @@ RUN pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 # Otherwise
 # RUN pip3 install pip -U
 RUN pip3 install setuptools
-RUN pip3 install numpy matplotlib scipy tqdm h5py pyproj jupyter notebook networkx opencv-python tensorflow-gpu==1.14 tensorboard sklearn 
+RUN pip3 install numpy matplotlib scipy pandas tqdm h5py pyproj jupyter notebook networkx opencv-python tensorflow-gpu==1.14 tensorboard sklearn 
